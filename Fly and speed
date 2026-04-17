@@ -1,0 +1,238 @@
+loadstring([[ 
+local player = game.Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local flying = false
+local noclipping = false
+local speed = 100
+local bodyVel, bodyGyro, noclipConn
+local wrongAttempts = 0
+local MAX_WRONG = 5
+
+local character = player.Character or player.CharacterAdded:Wait()
+local root = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    root = newChar:WaitForChild("HumanoidRootPart")
+    humanoid = newChar:WaitForChild("Humanoid")
+end)
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 240, 0, 190)
+mainFrame.Position = UDim2.new(0, 15, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+mainFrame.BorderSizePixel = 2
+mainFrame.BorderColor3 = Color3.fromRGB(0, 180, 0)
+mainFrame.Draggable = true
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0.20, 0)
+title.BackgroundTransparency = 1
+title.Text = "Mobile Fly + Noclip"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
+title.Parent = mainFrame
+
+local joinBtn = Instance.new("TextButton")
+joinBtn.Size = UDim2.new(0.9, 0, 0.30, 0)
+joinBtn.Position = UDim2.new(0.05, 0, 0.25, 0)
+joinBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+joinBtn.Text = "Join for Key"
+joinBtn.TextColor3 = Color3.new(1,1,1)
+joinBtn.TextScaled = true
+joinBtn.Parent = mainFrame
+
+local keySection = Instance.new("Frame")
+keySection.Size = UDim2.new(1, 0, 1, 0)
+keySection.BackgroundTransparency = 1
+keySection.Visible = false
+keySection.Parent = mainFrame
+
+local keyTitle = Instance.new("TextLabel")
+keyTitle.Size = UDim2.new(1, 0, 0.20, 0)
+keyTitle.Position = UDim2.new(0, 0, 0.22, 0)
+keyTitle.BackgroundTransparency = 1
+keyTitle.Text = "Enter Key"
+keyTitle.TextColor3 = Color3.new(1,1,1)
+keyTitle.TextScaled = true
+keyTitle.Parent = keySection
+
+local keyBox = Instance.new("TextBox")
+keyBox.Size = UDim2.new(0.9, 0, 0.22, 0)
+keyBox.Position = UDim2.new(0.05, 0, 0.42, 0)
+keyBox.PlaceholderText = "Enter key"
+keyBox.Text = ""
+keyBox.TextColor3 = Color3.new(1,1,1)
+keyBox.BackgroundColor3 = Color3.fromRGB(40,40,48)
+keyBox.TextScaled = true
+keyBox.Parent = keySection
+
+local submitBtn = Instance.new("TextButton")
+submitBtn.Size = UDim2.new(0.9, 0, 0.18, 0)
+submitBtn.Position = UDim2.new(0.05, 0, 0.68, 0)
+submitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+submitBtn.Text = "Submit"
+submitBtn.TextColor3 = Color3.new(1,1,1)
+submitBtn.TextScaled = true
+submitBtn.Parent = keySection
+
+local flySection = Instance.new("Frame")
+flySection.Size = UDim2.new(1, 0, 1, 0)
+flySection.BackgroundTransparency = 1
+flySection.Visible = false
+flySection.Parent = mainFrame
+
+local flyTitle = Instance.new("TextLabel")
+flyTitle.Size = UDim2.new(1, 0, 0.22, 0)
+flyTitle.BackgroundTransparency = 1
+flyTitle.Text = "Mobile Fly"
+flyTitle.TextColor3 = Color3.new(1,1,1)
+flyTitle.TextScaled = true
+flyTitle.Parent = flySection
+
+local flyToggle = Instance.new("TextButton")
+flyToggle.Size = UDim2.new(0.9, 0, 0.25, 0)
+flyToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
+flyToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+flyToggle.Text = "FLY OFF"
+flyToggle.TextColor3 = Color3.new(1,1,1)
+flyToggle.TextScaled = true
+flyToggle.Parent = flySection
+
+local noclipToggle = Instance.new("TextButton")
+noclipToggle.Size = UDim2.new(0.9, 0, 0.25, 0)
+noclipToggle.Position = UDim2.new(0.05, 0, 0.55, 0)
+noclipToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+noclipToggle.Text = "NOCLIP OFF"
+noclipToggle.TextColor3 = Color3.new(1,1,1)
+noclipToggle.TextScaled = true
+noclipToggle.Parent = flySection
+
+joinBtn.MouseButton1Click:Connect(function()
+    pcall(function() setclipboard("https://discord.gg/4gx6uCGb6h") end)
+    StarterGui:SetCore("SendNotification", {Title="Link Copied!", Text="Discord link copied!", Duration=5})
+    task.wait(0.5)
+    joinBtn:Destroy()
+    keySection.Visible = true
+end)
+
+submitBtn.MouseButton1Click:Connect(function()
+    if keyBox.Text == "Nexis" then
+        wrongAttempts = 0
+        submitBtn.Text = "Correct! Loading..."
+        task.wait(1)
+        keySection.Visible = false
+        flySection.Visible = true
+        mainFrame.Size = UDim2.new(0, 200, 0, 180)
+    else
+        wrongAttempts = wrongAttempts + 1
+        submitBtn.Text = "Wrong Key! ("..wrongAttempts.."/"..MAX_WRONG..")"
+        submitBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+        
+        if wrongAttempts >= MAX_WRONG then
+            StarterGui:SetCore("SendNotification", {Title="Kicked", Text="Too many wrong attempts.", Duration=5})
+            task.wait(1)
+            player:Kick("Too many incorrect key attempts.")
+            return
+        end
+        
+        task.wait(1.5)
+        submitBtn.Text = "Submit"
+        submitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    end
+end)
+
+flyToggle.MouseButton1Click:Connect(function()
+    flying = not flying
+    if flying then
+        pcall(function()
+            if bodyVel then bodyVel:Destroy() end
+            if bodyGyro then bodyGyro:Destroy() end
+            bodyVel = Instance.new("BodyVelocity")
+            bodyVel.MaxForce = Vector3.new(999999,999999,999999)
+            bodyVel.P = 3500
+            bodyVel.Parent = root
+            bodyGyro = Instance.new("BodyGyro")
+            bodyGyro.MaxTorque = Vector3.new(999999,999999,999999)
+            bodyGyro.P = 25000
+            bodyGyro.Parent = root
+            humanoid.PlatformStand = true
+        end)
+        flyToggle.Text = "FLY ON"
+        flyToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    else
+        pcall(function()
+            if bodyVel then bodyVel:Destroy() end
+            if bodyGyro then bodyGyro:Destroy() end
+            humanoid.PlatformStand = false
+        end)
+        flyToggle.Text = "FLY OFF"
+        flyToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    end
+end)
+
+noclipToggle.MouseButton1Click:Connect(function()
+    noclipping = not noclipping
+    if noclipping then
+        if noclipConn then noclipConn:Disconnect() end
+        noclipConn = RunService.Stepped:Connect(function()
+            pcall(function()
+                for _, v in ipairs(character:GetDescendants()) do
+                    if v:IsA("BasePart") then v.CanCollide = false end
+                end
+            end)
+        end)
+        noclipToggle.Text = "NOCLIP ON"
+        noclipToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    else
+        if noclipConn then noclipConn:Disconnect() end
+        pcall(function()
+            for _, v in ipairs(character:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = true end
+            end
+        end)
+        noclipToggle.Text = "NOCLIP OFF"
+        noclipToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not flying or not bodyVel or not root then return end
+    
+    local moveDir = humanoid.MoveDirection
+    local cf = camera.CFrame
+    local forward = cf.LookVector
+    local right = cf.RightVector
+    
+    local horizontal = (right * moveDir.X) + (forward * moveDir.Z)
+    horizontal = Vector3.new(horizontal.X, 0, horizontal.Z)
+    if horizontal.Magnitude > 0.1 then
+        horizontal = horizontal.Unit * speed
+    else
+        horizontal = Vector3.zero
+    end
+    
+    local vertical = 0
+    if forward.Y > 0.18 then vertical = speed * 1.05
+    elseif forward.Y < -0.18 then vertical = -speed * 0.95 end
+    
+    if horizontal.Magnitude < 12 and math.abs(vertical) < 12 then
+        vertical = vertical + 12
+    end
+    
+    bodyVel.Velocity = horizontal + Vector3.new(0, vertical, 0)
+    bodyGyro.CFrame = cf
+end)
+
+print("🚀 Script loaded - Key is Nexis")
+]])()
