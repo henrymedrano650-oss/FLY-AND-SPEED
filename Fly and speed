@@ -127,7 +127,7 @@ joinBtn.MouseButton1Click:Connect(function()
 end)
 
 submitBtn.MouseButton1Click:Connect(function()
-    if keyBox.Text == "Nexis" then
+    if keyBox.Text == "Nexo" then
         wrongAttempts = 0
         submitBtn.Text = "Correct! Loading..."
         task.wait(1)
