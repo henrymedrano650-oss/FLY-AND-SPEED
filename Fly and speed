@@ -1,238 +1,1211 @@
-loadstring([[ 
-local player = game.Players.LocalPlayer
-local camera = workspace.CurrentCamera
+-- Nexo Script Hub v5.0
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local StarterGui = game:GetService("StarterGui")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
 
-local flying = false
-local noclipping = false
-local speed = 100
-local bodyVel, bodyGyro, noclipConn
-local wrongAttempts = 0
-local MAX_WRONG = 5
+-- ========== KEY SYSTEM ==========
+local keyPassed = Instance.new("BindableEvent")
+local enteredKey = nil
 
-local character = player.Character or player.CharacterAdded:Wait()
-local root = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:WaitForChild("Humanoid")
+local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+gui.Name = "NexoKey"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-    root = newChar:WaitForChild("HumanoidRootPart")
-    humanoid = newChar:WaitForChild("Humanoid")
+local keyBlur = Instance.new("BlurEffect", Lighting)
+keyBlur.Size = 24
+
+local overlay = Instance.new("Frame", gui)
+overlay.Size = UDim2.new(1,0,1,0)
+overlay.BackgroundColor3 = Color3.fromRGB(0,0,0)
+overlay.BackgroundTransparency = 0.45
+overlay.BorderSizePixel = 0
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0,420,0,280)
+frame.Position = UDim2.new(0.5,-210,0.5,-140)
+frame.BackgroundColor3 = Color3.fromRGB(8,5,18)
+frame.BorderSizePixel = 0
+frame.ZIndex = 2
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,20)
+local grad = Instance.new("UIGradient", frame)
+grad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30,10,60)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(12,8,30)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(6,4,16)),
+})
+grad.Rotation = 145
+
+local topBar = Instance.new("Frame", frame)
+topBar.Size = UDim2.new(1,0,0,3)
+topBar.BorderSizePixel = 0
+topBar.ZIndex = 3
+Instance.new("UICorner", topBar).CornerRadius = UDim.new(0,20)
+local topBarGrad = Instance.new("UIGradient", topBar)
+topBarGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(160,60,255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(80,120,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(60,210,255)),
+})
+
+local titleLbl = Instance.new("TextLabel", frame)
+titleLbl.Size = UDim2.new(1,0,0,55)
+titleLbl.Position = UDim2.new(0,0,0,8)
+titleLbl.BackgroundTransparency = 1
+titleLbl.Text = "✦ NEXO HUB ✦"
+titleLbl.TextScaled = true
+titleLbl.Font = Enum.Font.GothamBold
+titleLbl.TextColor3 = Color3.fromRGB(255,255,255)
+titleLbl.ZIndex = 3
+local tGrad = Instance.new("UIGradient", titleLbl)
+tGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(210,140,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(100,190,255)),
+})
+
+local subLbl = Instance.new("TextLabel", frame)
+subLbl.Size = UDim2.new(1,0,0,20)
+subLbl.Position = UDim2.new(0,0,0,62)
+subLbl.BackgroundTransparency = 1
+subLbl.Text = "Enter your key to continue"
+subLbl.TextScaled = true
+subLbl.Font = Enum.Font.Gotham
+subLbl.TextColor3 = Color3.fromRGB(150,120,200)
+subLbl.ZIndex = 3
+
+local discBtn = Instance.new("TextButton", frame)
+discBtn.Size = UDim2.new(0.8,0,0,34)
+discBtn.Position = UDim2.new(0.1,0,0,90)
+discBtn.BorderSizePixel = 0
+discBtn.Text = "🔗  Join Discord for Key"
+discBtn.TextScaled = true
+discBtn.Font = Enum.Font.GothamBold
+discBtn.TextColor3 = Color3.fromRGB(255,255,255)
+discBtn.ZIndex = 3
+Instance.new("UICorner", discBtn).CornerRadius = UDim.new(0,10)
+Instance.new("UIGradient", discBtn).Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(110,70,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(88,101,242)),
+})
+
+local copiedLbl = Instance.new("TextLabel", frame)
+copiedLbl.Size = UDim2.new(0.8,0,0,16)
+copiedLbl.Position = UDim2.new(0.1,0,0,127)
+copiedLbl.BackgroundTransparency = 1
+copiedLbl.Text = ""
+copiedLbl.TextScaled = true
+copiedLbl.Font = Enum.Font.Gotham
+copiedLbl.TextColor3 = Color3.fromRGB(100,255,160)
+copiedLbl.ZIndex = 3
+
+discBtn.MouseButton1Click:Connect(function()
+    setclipboard("https://discord.gg/4gx6uCGb6h")
+    copiedLbl.Text = "✅  Copied! Paste in your browser."
+    task.delay(2.5, function() if copiedLbl then copiedLbl.Text = "" end end)
 end)
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+local inputBox = Instance.new("TextBox", frame)
+inputBox.Size = UDim2.new(0.8,0,0,40)
+inputBox.Position = UDim2.new(0.1,0,0,148)
+inputBox.BackgroundColor3 = Color3.fromRGB(18,12,35)
+inputBox.TextColor3 = Color3.fromRGB(240,240,255)
+inputBox.PlaceholderText = "🔑  Enter key here..."
+inputBox.PlaceholderColor3 = Color3.fromRGB(100,80,140)
+inputBox.Text = ""
+inputBox.TextScaled = true
+inputBox.Font = Enum.Font.Gotham
+inputBox.BorderSizePixel = 0
+inputBox.ClearTextOnFocus = false
+inputBox.ZIndex = 3
+Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0,10)
+local iStroke = Instance.new("UIStroke", inputBox)
+iStroke.Color = Color3.fromRGB(120,60,255)
+iStroke.Thickness = 1.5
 
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 240, 0, 190)
-mainFrame.Position = UDim2.new(0, 15, 0.2, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
-mainFrame.BorderSizePixel = 2
-mainFrame.BorderColor3 = Color3.fromRGB(0, 180, 0)
-mainFrame.Draggable = true
-mainFrame.Active = true
-mainFrame.Parent = screenGui
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0.20, 0)
-title.BackgroundTransparency = 1
-title.Text = "Mobile Fly + Noclip"
-title.TextColor3 = Color3.new(1,1,1)
-title.TextScaled = true
-title.Parent = mainFrame
-
-local joinBtn = Instance.new("TextButton")
-joinBtn.Size = UDim2.new(0.9, 0, 0.30, 0)
-joinBtn.Position = UDim2.new(0.05, 0, 0.25, 0)
-joinBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-joinBtn.Text = "Join for Key"
-joinBtn.TextColor3 = Color3.new(1,1,1)
-joinBtn.TextScaled = true
-joinBtn.Parent = mainFrame
-
-local keySection = Instance.new("Frame")
-keySection.Size = UDim2.new(1, 0, 1, 0)
-keySection.BackgroundTransparency = 1
-keySection.Visible = false
-keySection.Parent = mainFrame
-
-local keyTitle = Instance.new("TextLabel")
-keyTitle.Size = UDim2.new(1, 0, 0.20, 0)
-keyTitle.Position = UDim2.new(0, 0, 0.22, 0)
-keyTitle.BackgroundTransparency = 1
-keyTitle.Text = "Enter Key"
-keyTitle.TextColor3 = Color3.new(1,1,1)
-keyTitle.TextScaled = true
-keyTitle.Parent = keySection
-
-local keyBox = Instance.new("TextBox")
-keyBox.Size = UDim2.new(0.9, 0, 0.22, 0)
-keyBox.Position = UDim2.new(0.05, 0, 0.42, 0)
-keyBox.PlaceholderText = "Enter key"
-keyBox.Text = ""
-keyBox.TextColor3 = Color3.new(1,1,1)
-keyBox.BackgroundColor3 = Color3.fromRGB(40,40,48)
-keyBox.TextScaled = true
-keyBox.Parent = keySection
-
-local submitBtn = Instance.new("TextButton")
-submitBtn.Size = UDim2.new(0.9, 0, 0.18, 0)
-submitBtn.Position = UDim2.new(0.05, 0, 0.68, 0)
-submitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-submitBtn.Text = "Submit"
-submitBtn.TextColor3 = Color3.new(1,1,1)
+local submitBtn = Instance.new("TextButton", frame)
+submitBtn.Size = UDim2.new(0.55,0,0,38)
+submitBtn.Position = UDim2.new(0.225,0,0,200)
+submitBtn.BorderSizePixel = 0
+submitBtn.Text = "✦  Submit Key"
 submitBtn.TextScaled = true
-submitBtn.Parent = keySection
+submitBtn.Font = Enum.Font.GothamBold
+submitBtn.TextColor3 = Color3.fromRGB(255,255,255)
+submitBtn.ZIndex = 3
+Instance.new("UICorner", submitBtn).CornerRadius = UDim.new(0,10)
+Instance.new("UIGradient", submitBtn).Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(160,60,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(70,140,255)),
+})
 
-local flySection = Instance.new("Frame")
-flySection.Size = UDim2.new(1, 0, 1, 0)
-flySection.BackgroundTransparency = 1
-flySection.Visible = false
-flySection.Parent = mainFrame
+local statusLbl = Instance.new("TextLabel", frame)
+statusLbl.Size = UDim2.new(1,0,0,20)
+statusLbl.Position = UDim2.new(0,0,1,6)
+statusLbl.BackgroundTransparency = 1
+statusLbl.Text = ""
+statusLbl.TextScaled = true
+statusLbl.Font = Enum.Font.Gotham
+statusLbl.TextColor3 = Color3.fromRGB(255,80,80)
+statusLbl.ZIndex = 3
 
-local flyTitle = Instance.new("TextLabel")
-flyTitle.Size = UDim2.new(1, 0, 0.22, 0)
-flyTitle.BackgroundTransparency = 1
-flyTitle.Text = "Mobile Fly"
-flyTitle.TextColor3 = Color3.new(1,1,1)
-flyTitle.TextScaled = true
-flyTitle.Parent = flySection
-
-local flyToggle = Instance.new("TextButton")
-flyToggle.Size = UDim2.new(0.9, 0, 0.25, 0)
-flyToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
-flyToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-flyToggle.Text = "FLY OFF"
-flyToggle.TextColor3 = Color3.new(1,1,1)
-flyToggle.TextScaled = true
-flyToggle.Parent = flySection
-
-local noclipToggle = Instance.new("TextButton")
-noclipToggle.Size = UDim2.new(0.9, 0, 0.25, 0)
-noclipToggle.Position = UDim2.new(0.05, 0, 0.55, 0)
-noclipToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-noclipToggle.Text = "NOCLIP OFF"
-noclipToggle.TextColor3 = Color3.new(1,1,1)
-noclipToggle.TextScaled = true
-noclipToggle.Parent = flySection
-
-joinBtn.MouseButton1Click:Connect(function()
-    pcall(function() setclipboard("https://discord.gg/4gx6uCGb6h") end)
-    StarterGui:SetCore("SendNotification", {Title="Link Copied!", Text="Discord link copied!", Duration=5})
-    task.wait(0.5)
-    joinBtn:Destroy()
-    keySection.Visible = true
-end)
+local function shakeFrame()
+    for i = 1,6 do
+        TweenService:Create(frame, TweenInfo.new(0.05), {
+            Position = UDim2.new(0.5,-210+(i%2==0 and 10 or -10),0.5,-140)
+        }):Play()
+        task.wait(0.05)
+    end
+    TweenService:Create(frame, TweenInfo.new(0.1), {
+        Position = UDim2.new(0.5,-210,0.5,-140)
+    }):Play()
+end
 
 submitBtn.MouseButton1Click:Connect(function()
-    if keyBox.Text == "Nexo" then
-        wrongAttempts = 0
-        submitBtn.Text = "Correct! Loading..."
-        task.wait(1)
-        keySection.Visible = false
-        flySection.Visible = true
-        mainFrame.Size = UDim2.new(0, 200, 0, 180)
+    local txt = inputBox.Text
+    if txt == "Nexo" or txt == "TestEarly" then
+        enteredKey = txt
+        TweenService:Create(frame, TweenInfo.new(0.4), {
+            BackgroundTransparency=1,
+            Position=UDim2.new(0.5,-210,0.6,-140)
+        }):Play()
+        TweenService:Create(overlay, TweenInfo.new(0.4), {BackgroundTransparency=1}):Play()
+        task.wait(0.5)
+        keyBlur:Destroy()
+        gui:Destroy()
+        keyPassed:Fire()
     else
-        wrongAttempts = wrongAttempts + 1
-        submitBtn.Text = "Wrong Key! ("..wrongAttempts.."/"..MAX_WRONG..")"
-        submitBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-        
-        if wrongAttempts >= MAX_WRONG then
-            StarterGui:SetCore("SendNotification", {Title="Kicked", Text="Too many wrong attempts.", Duration=5})
-            task.wait(1)
-            player:Kick("Too many incorrect key attempts.")
-            return
+        statusLbl.Text = "❌  Wrong key! Join Discord to get it."
+        inputBox.Text = ""
+        shakeFrame()
+        task.delay(3, function() if statusLbl then statusLbl.Text = "" end end)
+    end
+end)
+
+inputBox.FocusLost:Connect(function(enter)
+    if enter then submitBtn.MouseButton1Click:Fire() end
+end)
+
+keyPassed.Event:Wait()
+
+-- ========== LOADING SCREEN ==========
+local loadGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+loadGui.Name = "NexoLoad"
+loadGui.ResetOnSpawn = false
+loadGui.IgnoreGuiInset = true
+
+local bg = Instance.new("Frame", loadGui)
+bg.Size = UDim2.new(1,0,1,0)
+bg.BackgroundColor3 = Color3.fromRGB(6,4,14)
+bg.BorderSizePixel = 0
+Instance.new("UIGradient", bg).Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(18,6,40)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(4,3,12)),
+})
+
+local logo = Instance.new("TextLabel", loadGui)
+logo.Size = UDim2.new(0,520,0,95)
+logo.Position = UDim2.new(0.5,-260,0.5,-165)
+logo.BackgroundTransparency = 1
+logo.Text = "✦ NEXO HUB ✦"
+logo.TextScaled = true
+logo.Font = Enum.Font.GothamBold
+logo.TextTransparency = 1
+logo.ZIndex = 2
+Instance.new("UIGradient", logo).Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(210,140,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(80,170,255)),
+})
+
+local loadSub = Instance.new("TextLabel", loadGui)
+loadSub.Size = UDim2.new(0,400,0,28)
+loadSub.Position = UDim2.new(0.5,-200,0.5,-68)
+loadSub.BackgroundTransparency = 1
+loadSub.Text = enteredKey == "TestEarly" and "✦ Early Access  •  v5.0" or "Premium Script Hub  •  v5.0"
+loadSub.TextScaled = true
+loadSub.Font = Enum.Font.Gotham
+loadSub.TextColor3 = Color3.fromRGB(150,120,200)
+loadSub.TextTransparency = 1
+loadSub.ZIndex = 2
+
+local barBG = Instance.new("Frame", loadGui)
+barBG.Size = UDim2.new(0,440,0,6)
+barBG.Position = UDim2.new(0.5,-220,0.5,20)
+barBG.BackgroundColor3 = Color3.fromRGB(28,18,52)
+barBG.BorderSizePixel = 0
+barBG.ZIndex = 2
+Instance.new("UICorner", barBG).CornerRadius = UDim.new(1,0)
+
+local barFill = Instance.new("Frame", barBG)
+barFill.Size = UDim2.new(0,0,1,0)
+barFill.BorderSizePixel = 0
+barFill.ZIndex = 3
+Instance.new("UICorner", barFill).CornerRadius = UDim.new(1,0)
+Instance.new("UIGradient", barFill).Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(160,60,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(60,190,255)),
+})
+
+local statusTxt = Instance.new("TextLabel", loadGui)
+statusTxt.Size = UDim2.new(0,440,0,24)
+statusTxt.Position = UDim2.new(0.5,-220,0.5,36)
+statusTxt.BackgroundTransparency = 1
+statusTxt.Text = "Initializing..."
+statusTxt.TextScaled = true
+statusTxt.Font = Enum.Font.Gotham
+statusTxt.TextColor3 = Color3.fromRGB(160,130,210)
+statusTxt.ZIndex = 2
+
+local verTxt = Instance.new("TextLabel", loadGui)
+verTxt.Size = UDim2.new(0,300,0,20)
+verTxt.Position = UDim2.new(0.5,-150,0.5,78)
+verTxt.BackgroundTransparency = 1
+verTxt.Text = "v5.0  •  Nexo Hub  •  by Nexo"
+verTxt.TextScaled = true
+verTxt.Font = Enum.Font.Gotham
+verTxt.TextColor3 = Color3.fromRGB(90,70,130)
+verTxt.ZIndex = 2
+
+TweenService:Create(logo, TweenInfo.new(0.8,Enum.EasingStyle.Quad), {TextTransparency=0}):Play()
+TweenService:Create(loadSub, TweenInfo.new(0.8,Enum.EasingStyle.Quad), {TextTransparency=0}):Play()
+task.wait(0.8)
+
+local steps = {
+    {"⚙️  Loading core modules...",  0.14, 0.7},
+    {"🔗  Connecting to services...", 0.28, 0.7},
+    {"🔑  Verifying key...",           0.43, 0.6},
+    {"🛠️  Building interface...",      0.58, 0.7},
+    {"⚡  Applying features...",       0.72, 0.6},
+    {"🚀  Optimizing...",              0.86, 0.6},
+    {"✦  Welcome to Nexo Hub!",       1.00, 0.5},
+}
+
+for _, s in ipairs(steps) do
+    statusTxt.Text = s[1]
+    TweenService:Create(barFill, TweenInfo.new(0.4,Enum.EasingStyle.Quad), {
+        Size=UDim2.new(s[2],0,1,0)
+    }):Play()
+    task.wait(s[3])
+end
+
+task.wait(0.6)
+for _, obj in pairs({logo, loadSub, statusTxt, verTxt}) do
+    TweenService:Create(obj, TweenInfo.new(0.5), {TextTransparency=1}):Play()
+end
+task.wait(0.3)
+TweenService:Create(barBG, TweenInfo.new(0.4), {BackgroundTransparency=1}):Play()
+TweenService:Create(barFill, TweenInfo.new(0.4), {BackgroundTransparency=1}):Play()
+task.wait(0.3)
+TweenService:Create(bg, TweenInfo.new(0.5), {BackgroundTransparency=1}):Play()
+task.wait(0.6)
+loadGui:Destroy()
+
+-- ========== CHARACTER ==========
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+-- TestEarly key still works for early access label on loading screen
+-- Invisible is now open to everyone
+local isEarlyAccess = enteredKey == "TestEarly"
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+-- ========== STATE ==========
+local currentWalkSpeed = 16
+local currentJumpPower = 50
+local noclipEnabled = false
+local invisEnabled = false
+local flyEnabled = false
+local flySpeed = 50
+local buttonsLocked = false
+local noclipConn = nil
+local invisConn = nil
+local descendantConn = nil
+local flyConn = nil
+local statLoop = nil
+local origCollision = {}
+local origTransparency = {}
+local clones = {}
+local flyBV = nil
+local flyBG = nil
+local flyUpHeld = false
+local flyDownHeld = false
+local mobileGui = nil
+
+-- ========== STAT ENFORCER ==========
+local function startStatLoop()
+    if statLoop then statLoop:Disconnect() end
+    statLoop = RunService.Heartbeat:Connect(function()
+        if not Humanoid or not Humanoid.Parent then return end
+        if Humanoid.WalkSpeed ~= currentWalkSpeed then
+            Humanoid.WalkSpeed = currentWalkSpeed
         end
-        
-        task.wait(1.5)
-        submitBtn.Text = "Submit"
-        submitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    end
-end)
+        if Humanoid.UseJumpPower then
+            if Humanoid.JumpPower ~= currentJumpPower then
+                Humanoid.JumpPower = currentJumpPower
+            end
+        else
+            local jh = (currentJumpPower * currentJumpPower) / (2 * workspace.Gravity)
+            if math.abs(Humanoid.JumpHeight - jh) > 0.1 then
+                Humanoid.JumpHeight = jh
+            end
+        end
+    end)
+end
+startStatLoop()
 
-flyToggle.MouseButton1Click:Connect(function()
-    flying = not flying
-    if flying then
-        pcall(function()
-            if bodyVel then bodyVel:Destroy() end
-            if bodyGyro then bodyGyro:Destroy() end
-            bodyVel = Instance.new("BodyVelocity")
-            bodyVel.MaxForce = Vector3.new(999999,999999,999999)
-            bodyVel.P = 3500
-            bodyVel.Parent = root
-            bodyGyro = Instance.new("BodyGyro")
-            bodyGyro.MaxTorque = Vector3.new(999999,999999,999999)
-            bodyGyro.P = 25000
-            bodyGyro.Parent = root
-            humanoid.PlatformStand = true
-        end)
-        flyToggle.Text = "FLY ON"
-        flyToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    else
-        pcall(function()
-            if bodyVel then bodyVel:Destroy() end
-            if bodyGyro then bodyGyro:Destroy() end
-            humanoid.PlatformStand = false
-        end)
-        flyToggle.Text = "FLY OFF"
-        flyToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-    end
-end)
+-- ========== NOCLIP ==========
+local PARTS = {
+    "HumanoidRootPart","UpperTorso","LowerTorso","Head",
+    "LeftUpperArm","LeftLowerArm","LeftHand",
+    "RightUpperArm","RightLowerArm","RightHand",
+    "LeftUpperLeg","LeftLowerLeg","LeftFoot",
+    "RightUpperLeg","RightLowerLeg","RightFoot",
+    "Torso","Left Arm","Right Arm","Left Leg","Right Leg",
+}
 
-noclipToggle.MouseButton1Click:Connect(function()
-    noclipping = not noclipping
-    if noclipping then
-        if noclipConn then noclipConn:Disconnect() end
-        noclipConn = RunService.Stepped:Connect(function()
-            pcall(function()
-                for _, v in ipairs(character:GetDescendants()) do
-                    if v:IsA("BasePart") then v.CanCollide = false end
-                end
+local function enableNoclip()
+    if noclipConn then noclipConn:Disconnect() end
+    origCollision = {}
+    if Character then
+        for _, p in pairs(Character:GetDescendants()) do
+            if p:IsA("BasePart") then
+                origCollision[p] = p.CanCollide
+                p.CanCollide = false
+            end
+        end
+    end
+    noclipConn = RunService.Stepped:Connect(function()
+        if not noclipEnabled or not Character then return end
+        for _, n in ipairs(PARTS) do
+            local p = Character:FindFirstChild(n)
+            if p and p:IsA("BasePart") then p.CanCollide = false end
+        end
+        for _, p in pairs(Character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = false end
+        end
+    end)
+end
+
+local function disableNoclip()
+    noclipEnabled = false
+    if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+    if Character then
+        for _, p in pairs(Character:GetDescendants()) do
+            if p:IsA("BasePart") then
+                p.CanCollide = origCollision[p] ~= nil and origCollision[p] or true
+            end
+        end
+    end
+    origCollision = {}
+end
+
+-- ========== INVISIBLE ==========
+local function forceInvis(p)
+    pcall(function()
+        if p:IsA("BasePart") or p:IsA("Decal") or p:IsA("Texture") then
+            if origTransparency[p] == nil then
+                origTransparency[p] = p.Transparency
+            end
+            p.Transparency = 1
+        end
+    end)
+end
+
+local function applyInvisToChar()
+    if not Character then return end
+    for _, p in pairs(Character:GetDescendants()) do
+        forceInvis(p)
+    end
+    local tool = Character:FindFirstChildOfClass("Tool")
+    if tool then
+        for _, p in pairs(tool:GetDescendants()) do forceInvis(p) end
+    end
+end
+
+local function enableInvis()
+    if invisConn then invisConn:Disconnect() invisConn = nil end
+    if descendantConn then descendantConn:Disconnect() descendantConn = nil end
+    origTransparency = {}
+    applyInvisToChar()
+    if Character then
+        descendantConn = Character.DescendantAdded:Connect(function(p)
+            if not invisEnabled then return end
+            task.defer(function()
+                if not invisEnabled then return end
+                forceInvis(p)
             end)
         end)
-        noclipToggle.Text = "NOCLIP ON"
-        noclipToggle.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    else
-        if noclipConn then noclipConn:Disconnect() end
-        pcall(function()
-            for _, v in ipairs(character:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = true end
+    end
+    invisConn = RunService.Heartbeat:Connect(function()
+        if not invisEnabled or not Character or not Character.Parent then return end
+        for _, p in pairs(Character:GetDescendants()) do
+            if (p:IsA("BasePart") or p:IsA("Decal") or p:IsA("Texture")) and p.Transparency ~= 1 then
+                p.Transparency = 1
             end
+        end
+        local tool = Character:FindFirstChildOfClass("Tool")
+        if tool then
+            for _, p in pairs(tool:GetDescendants()) do
+                if (p:IsA("BasePart") or p:IsA("Decal")) and p.Transparency ~= 1 then
+                    p.Transparency = 1
+                end
+            end
+        end
+    end)
+end
+
+local function disableInvis()
+    invisEnabled = false
+    if invisConn then invisConn:Disconnect() invisConn = nil end
+    if descendantConn then descendantConn:Disconnect() descendantConn = nil end
+    if not Character then origTransparency = {} return end
+    for p, t in pairs(origTransparency) do
+        pcall(function()
+            if p and p.Parent then p.Transparency = t end
         end)
-        noclipToggle.Text = "NOCLIP OFF"
-        noclipToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
     end
+    origTransparency = {}
+end
+
+local function refreshInvis()
+    if not invisEnabled then return end
+    for _, p in pairs(Character:GetDescendants()) do
+        if (p:IsA("BasePart") or p:IsA("Decal") or p:IsA("Texture")) then
+            if origTransparency[p] == nil then origTransparency[p] = p.Transparency end
+            pcall(function() p.Transparency = 1 end)
+        end
+    end
+end
+
+-- ========== DRAGGABLE ==========
+local function makeDraggable(btn, getLocked)
+    local dragging = false
+    local dragStart, startPos
+    btn.InputBegan:Connect(function(input)
+        if getLocked and getLocked() then return end
+        if input.UserInputType == Enum.UserInputType.Touch or
+           input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = btn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if getLocked and getLocked() then dragging = false return end
+        if dragging and (input.UserInputType == Enum.UserInputType.Touch or
+           input.UserInputType == Enum.UserInputType.MouseMovement) then
+            local delta = input.Position - dragStart
+            btn.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- ========== FLY ==========
+local function cleanFly()
+    if flyConn then flyConn:Disconnect() flyConn = nil end
+    if flyBV and flyBV.Parent then flyBV:Destroy() flyBV = nil end
+    if flyBG and flyBG.Parent then flyBG:Destroy() flyBG = nil end
+end
+
+local function createMobileFlyButtons()
+    if not isMobile then return end
+    if mobileGui then mobileGui:Destroy() end
+    mobileGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+    mobileGui.Name = "NexoFlyMobile"
+    mobileGui.ResetOnSpawn = false
+    mobileGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local function makeBtn(text, pos, onDown, onUp)
+        local btn = Instance.new("TextButton", mobileGui)
+        btn.Size = UDim2.new(0,52,0,52)
+        btn.Position = pos
+        btn.BackgroundColor3 = Color3.fromRGB(100,50,220)
+        btn.BackgroundTransparency = 0.2
+        btn.Text = text
+        btn.TextScaled = true
+        btn.Font = Enum.Font.GothamBold
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.BorderSizePixel = 0
+        btn.ZIndex = 10
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
+        Instance.new("UIGradient", btn).Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(160,60,255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(60,140,255)),
+        })
+        local stroke = Instance.new("UIStroke", btn)
+        stroke.Color = Color3.fromRGB(180,100,255)
+        stroke.Thickness = 1.5
+        btn.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.Touch then onDown() end
+        end)
+        btn.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.Touch then onUp() end
+        end)
+        makeDraggable(btn, function() return buttonsLocked end)
+        return btn
+    end
+
+    makeBtn("⬆", UDim2.new(1,-130,1,-140),
+        function() flyUpHeld = true end,
+        function() flyUpHeld = false end)
+    makeBtn("⬇", UDim2.new(1,-68,1,-140),
+        function() flyDownHeld = true end,
+        function() flyDownHeld = false end)
+
+    local lockLbl = Instance.new("TextLabel", mobileGui)
+    lockLbl.Size = UDim2.new(0,110,0,20)
+    lockLbl.Position = UDim2.new(1,-140,1,-165)
+    lockLbl.BackgroundTransparency = 1
+    lockLbl.Text = "🔓 Drag"
+    lockLbl.TextScaled = true
+    lockLbl.Font = Enum.Font.Gotham
+    lockLbl.TextColor3 = Color3.fromRGB(180,150,255)
+    lockLbl.ZIndex = 10
+
+    RunService.Heartbeat:Connect(function()
+        if not lockLbl or not lockLbl.Parent then return end
+        lockLbl.Text = buttonsLocked and "🔒 Locked" or "🔓 Drag"
+        lockLbl.TextColor3 = buttonsLocked
+            and Color3.fromRGB(100,255,160)
+            or Color3.fromRGB(180,150,255)
+    end)
+end
+
+local function removeMobileFlyButtons()
+    flyUpHeld = false
+    flyDownHeld = false
+    if mobileGui then mobileGui:Destroy() mobileGui = nil end
+end
+
+local function enableFly()
+    cleanFly()
+    if not RootPart or not Humanoid then return end
+    Humanoid.PlatformStand = true
+    flyBV = Instance.new("BodyVelocity")
+    flyBV.Name = "NexoFlyVel"
+    flyBV.MaxForce = Vector3.new(1e6,1e6,1e6)
+    flyBV.Velocity = Vector3.zero
+    flyBV.Parent = RootPart
+    flyBG = Instance.new("BodyGyro")
+    flyBG.Name = "NexoFlyGyro"
+    flyBG.MaxTorque = Vector3.new(1e6,1e6,1e6)
+    flyBG.P = 5000
+    flyBG.D = 100
+    flyBG.CFrame = RootPart.CFrame
+    flyBG.Parent = RootPart
+    if isMobile then createMobileFlyButtons() end
+    flyConn = RunService.Heartbeat:Connect(function()
+        if not flyEnabled then return end
+        if not RootPart or not RootPart.Parent then return end
+        if not flyBV or not flyBV.Parent then return end
+        if not flyBG or not flyBG.Parent then return end
+        local cam = workspace.CurrentCamera
+        local dir = Vector3.zero
+        if isMobile then
+            local md = Humanoid.MoveDirection
+            if md.Magnitude > 0 then dir = dir + Vector3.new(md.X,0,md.Z) end
+            if flyUpHeld then dir = dir + Vector3.new(0,1,0) end
+            if flyDownHeld then dir = dir + Vector3.new(0,-1,0) end
+        else
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir + Vector3.new(0,-1,0) end
+        end
+        flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * flySpeed or Vector3.zero
+        flyBG.CFrame = cam.CFrame
+    end)
+end
+
+local function disableFly()
+    flyEnabled = false
+    cleanFly()
+    removeMobileFlyButtons()
+    if Humanoid then Humanoid.PlatformStand = false end
+end
+
+-- ========== CLONE ==========
+local function spawnClone(targetName)
+    local target = nil
+    if targetName and targetName ~= "" then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Name:lower():find(targetName:lower(), 1, true) then target = p; break end
+        end
+        if not target then return nil, "notfound" end
+    end
+    local sourceChar = target and target.Character or Character
+    if not sourceChar then return nil, "nochar" end
+    local clone = sourceChar:Clone()
+    clone.Name = (target and target.Name or LocalPlayer.Name) .. "_Clone"
+    for _, v in pairs(clone:GetDescendants()) do
+        if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ModuleScript") then v:Destroy() end
+    end
+    local anim = clone:FindFirstChild("Animate")
+    if anim then anim:Destroy() end
+    local sr = sourceChar:FindFirstChild("HumanoidRootPart")
+    if sr then clone:SetPrimaryPartCFrame(sr.CFrame * CFrame.new(4,0,0)) end
+    clone.Parent = workspace
+    table.insert(clones, clone)
+    return clone, "ok"
+end
+
+local function removeAllClones()
+    for _, c in pairs(clones) do if c and c.Parent then c:Destroy() end end
+    clones = {}
+end
+
+-- ========== FPS BOOST ==========
+local origLighting = {}
+
+local function applyFPS()
+    origLighting = {
+        GlobalShadows = Lighting.GlobalShadows,
+        FogEnd = Lighting.FogEnd,
+        Brightness = Lighting.Brightness,
+        Ambient = Lighting.Ambient,
+        OutdoorAmbient = Lighting.OutdoorAmbient,
+    }
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 100000
+    Lighting.Brightness = 1
+    Lighting.Ambient = Color3.fromRGB(128,128,128)
+    Lighting.OutdoorAmbient = Color3.fromRGB(128,128,128)
+    for _, v in pairs(Lighting:GetChildren()) do
+        pcall(function()
+            if v:IsA("PostEffect") or v:IsA("Atmosphere") then v.Enabled = false end
+        end)
+    end
+    for _, v in pairs(workspace:GetDescendants()) do
+        pcall(function()
+            if v:IsA("ParticleEmitter") or v:IsA("Fire") or v:IsA("Smoke") or
+               v:IsA("Sparkles") or v:IsA("Beam") or v:IsA("Trail") then v.Enabled = false end
+        end)
+    end
+    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+end
+
+local function removeFPS()
+    for k, v in pairs(origLighting) do Lighting[k] = v end
+    for _, v in pairs(Lighting:GetChildren()) do
+        pcall(function()
+            if v:IsA("PostEffect") or v:IsA("Atmosphere") then v.Enabled = true end
+        end)
+    end
+    for _, v in pairs(workspace:GetDescendants()) do
+        pcall(function()
+            if v:IsA("ParticleEmitter") or v:IsA("Fire") or v:IsA("Smoke") or
+               v:IsA("Sparkles") or v:IsA("Beam") or v:IsA("Trail") then v.Enabled = true end
+        end)
+    end
+    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic end)
+end
+
+-- ========== RESPAWN ==========
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    Humanoid = char:WaitForChild("Humanoid")
+    RootPart = char:WaitForChild("HumanoidRootPart")
+    task.wait(0.3)
+    startStatLoop()
+    if noclipEnabled then task.wait(0.1) enableNoclip() end
+    if invisEnabled then task.wait(0.1) enableInvis() end
+    if flyEnabled then task.wait(0.1) enableFly() end
 end)
 
-RunService.RenderStepped:Connect(function()
-    if not flying or not bodyVel or not root then return end
-    
-    local moveDir = humanoid.MoveDirection
-    local cf = camera.CFrame
-    local forward = cf.LookVector
-    local right = cf.RightVector
-    
-    local horizontal = (right * moveDir.X) + (forward * moveDir.Z)
-    horizontal = Vector3.new(horizontal.X, 0, horizontal.Z)
-    if horizontal.Magnitude > 0.1 then
-        horizontal = horizontal.Unit * speed
-    else
-        horizontal = Vector3.zero
+-- ========== HELPERS ==========
+local function findPlayer(name)
+    if name == "" then return nil end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Name:lower():find(name:lower(), 1, true) then return p end
     end
-    
-    local vertical = 0
-    if forward.Y > 0.18 then vertical = speed * 1.05
-    elseif forward.Y < -0.18 then vertical = -speed * 0.95 end
-    
-    if horizontal.Magnitude < 12 and math.abs(vertical) < 12 then
-        vertical = vertical + 12
-    end
-    
-    bodyVel.Velocity = horizontal + Vector3.new(0, vertical, 0)
-    bodyGyro.CFrame = cf
-end)
+    return nil
+end
 
-print("🚀 Script loaded - Key is Nexis")
-]])()
+local function playerInfo(t)
+    local c = t.Character
+    local h = c and c:FindFirstChildOfClass("Humanoid")
+    return string.format(
+        "👤 %s  |  %s\n❤️ HP: %s / %s\n🏆 Team: %s\n📅 Age: %s days\n🆔 ID: %s",
+        t.Name, t.DisplayName,
+        h and math.floor(h.Health) or "N/A",
+        h and math.floor(h.MaxHealth) or "N/A",
+        t.Team and t.Team.Name or "None",
+        t.AccountAge, t.UserId
+    )
+end
+
+local function notify(title, content, dur)
+    Rayfield:Notify({Title=title, Content=content, Duration=dur or 3, Image=4483362458})
+end
+
+-- ========== MAIN UI ==========
+local Window = Rayfield:CreateWindow({
+    Name = "✦ Nexo Hub",
+    Icon = 0,
+    LoadingTitle = "✦ Nexo Hub",
+    LoadingSubtitle = "by Nexo  •  v5.0",
+    Theme = "Amethyst",
+    DisableRayfieldPrompts = false,
+    DisableBuildWarnings = false,
+})
+
+-- ===== MOVEMENT TAB =====
+local MoveTab = Window:CreateTab("✦ Movement", 4483362458)
+
+MoveTab:CreateSection("✈️ Fly")
+MoveTab:CreateToggle({
+    Name = "Enable Fly",
+    Info = isMobile and "Joystick = Move | ⬆⬇ = Up/Down | Drag to reposition" or "WASD = Move | Space = Up | Shift = Down",
+    CurrentValue = false,
+    Flag = "FlyToggle",
+    Callback = function(v)
+        flyEnabled = v
+        if v then
+            enableFly()
+            notify("✦ Fly ON", isMobile and "Use joystick + ⬆⬇ buttons!" or "WASD + Space/Shift to fly.")
+        else
+            disableFly()
+            notify("✦ Fly OFF", "Flight disabled.")
+        end
+    end,
+})
+
+MoveTab:CreateSlider({
+    Name = "Fly Speed",
+    Info = "Updates instantly while flying",
+    Range = {10, 1000},
+    Increment = 10,
+    Suffix = " SPD",
+    CurrentValue = 50,
+    Flag = "FlySpeed",
+    Callback = function(v) flySpeed = v end,
+})
+
+if isMobile then
+    MoveTab:CreateToggle({
+        Name = "🔒 Lock Fly Buttons",
+        Info = "Locks buttons so they stop moving when tapped",
+        CurrentValue = false,
+        Flag = "LockBtns",
+        Callback = function(v)
+            buttonsLocked = v
+            notify(v and "✦ Buttons Locked" or "✦ Buttons Unlocked",
+                v and "Buttons fixed in place." or "Buttons can be dragged again.")
+        end,
+    })
+end
+
+MoveTab:CreateSection("🚫 Noclip")
+MoveTab:CreateToggle({
+    Name = "Enable Noclip",
+    Info = "Phase through every wall and part",
+    CurrentValue = false,
+    Flag = "NoclipToggle",
+    Callback = function(v)
+        noclipEnabled = v
+        if v then enableNoclip() notify("✦ Noclip ON", "Walk through anything.")
+        else disableNoclip() notify("✦ Noclip OFF", "Collision restored.") end
+    end,
+})
+
+MoveTab:CreateSection("👻 Invisible")
+MoveTab:CreateToggle({
+    Name = "Enable Invisible",
+    Info = "Full rework — every part enforced every frame",
+    CurrentValue = false,
+    Flag = "InvisToggle",
+    Callback = function(v)
+        invisEnabled = v
+        if v then
+            enableInvis()
+            notify("✦ Invisible ON", "Fully invisible. 👻")
+        else
+            disableInvis()
+            notify("✦ Invisible OFF", "You are visible again.")
+        end
+    end,
+})
+
+MoveTab:CreateButton({
+    Name = "🔄 Refresh Invisible",
+    Info = "Re-applies after equipping tools or accessories",
+    Callback = function()
+        if invisEnabled then
+            refreshInvis()
+            notify("✦ Refreshed", "All parts re-hidden.")
+        else
+            notify("✦ Not Active", "Enable invisible first!")
+        end
+    end,
+})
+
+MoveTab:CreateButton({
+    Name = "👁️ Invisible Status",
+    Callback = function()
+        notify("✦ Status", invisEnabled and "✅ ON — fully hidden." or "❌ OFF — visible.")
+    end,
+})
+
+-- ===== PLAYER TAB =====
+local PlayerTab = Window:CreateTab("✦ Player", 4483362458)
+
+PlayerTab:CreateSection("⚡ My Stats")
+
+PlayerTab:CreateButton({
+    Name = "📊 Show My Info",
+    Callback = function()
+        if not Humanoid then notify("✦ Error", "Character not found!") return end
+        notify("✦ " .. LocalPlayer.Name, string.format(
+            "👤 %s\n❤️ HP: %s / %s\n🚶 Speed: %s\n⬆️ Jump: %s\n📅 Age: %s days",
+            LocalPlayer.Name,
+            math.floor(Humanoid.Health), math.floor(Humanoid.MaxHealth),
+            math.floor(Humanoid.WalkSpeed), math.floor(Humanoid.JumpPower),
+            LocalPlayer.AccountAge
+        ), 7)
+    end,
+})
+
+PlayerTab:CreateSlider({
+    Name = "WalkSpeed",
+    Info = "Locked every frame",
+    Range = {16, 800},
+    Increment = 2,
+    Suffix = " SPD",
+    CurrentValue = 16,
+    Flag = "WalkSpeed",
+    Callback = function(v)
+        currentWalkSpeed = v
+        if Humanoid then Humanoid.WalkSpeed = v end
+    end,
+})
+
+PlayerTab:CreateSlider({
+    Name = "JumpPower",
+    Info = "Works on both R6 and R15",
+    Range = {50, 1000},
+    Increment = 10,
+    Suffix = " JP",
+    CurrentValue = 50,
+    Flag = "JumpPower",
+    Callback = function(v)
+        currentJumpPower = v
+        if Humanoid then
+            if Humanoid.UseJumpPower then
+                Humanoid.JumpPower = v
+            else
+                Humanoid.JumpHeight = (v * v) / (2 * workspace.Gravity)
+            end
+        end
+    end,
+})
+
+PlayerTab:CreateButton({
+    Name = "🔄 Reset Stats",
+    Callback = function()
+        currentWalkSpeed = 16
+        currentJumpPower = 50
+        if Humanoid then
+            Humanoid.WalkSpeed = 16
+            if Humanoid.UseJumpPower then
+                Humanoid.JumpPower = 50
+            else
+                Humanoid.JumpHeight = (50*50)/(2*workspace.Gravity)
+            end
+        end
+        notify("✦ Reset", "Stats back to default.")
+    end,
+})
+
+PlayerTab:CreateSection("🎭 Character")
+
+PlayerTab:CreateButton({
+    Name = "💊 Full Heal",
+    Callback = function()
+        if Humanoid then
+            Humanoid.Health = Humanoid.MaxHealth
+            notify("✦ Healed", "Health fully restored!")
+        end
+    end,
+})
+
+PlayerTab:CreateButton({
+    Name = "💀 Kill Myself",
+    Callback = function()
+        if Humanoid then Humanoid.Health = 0 end
+    end,
+})
+
+PlayerTab:CreateButton({
+    Name = "🔄 Respawn",
+    Callback = function()
+        LocalPlayer:LoadCharacter()
+    end,
+})
+
+PlayerTab:CreateSection("🔍 Player Lookup")
+
+local lookupName = ""
+PlayerTab:CreateInput({
+    Name = "Player Name",
+    Info = "Type username then press Search",
+    Placeholder = "Username...",
+    Text = "",
+    Callback = function(t) lookupName = t end,
+})
+
+PlayerTab:CreateButton({
+    Name = "🔍 Search Player",
+    Callback = function()
+        if lookupName == "" then notify("✦ Lookup", "❌ Type a name first!") return end
+        local t = findPlayer(lookupName)
+        if t then notify("✦ " .. t.Name, playerInfo(t), 10)
+        else notify("✦ Not Found", "❌ '" .. lookupName .. "' not in server.", 5) end
+    end,
+})
+
+PlayerTab:CreateButton({
+    Name = "📋 List All Players",
+    Callback = function()
+        local all = Players:GetPlayers()
+        local lines = {}
+        for i, p in ipairs(all) do lines[i] = i .. ".  " .. p.Name end
+        notify("✦ Server (" .. #all .. " players)", table.concat(lines, "\n"), 9)
+    end,
+})
+
+-- ===== CLONE TAB =====
+local CloneTab = Window:CreateTab("✦ Clone", 4483362458)
+CloneTab:CreateSection("🪞 Clone System")
+
+local cloneTargetName = ""
+CloneTab:CreateInput({
+    Name = "Clone Target",
+    Info = "Leave empty = clone yourself",
+    Placeholder = "Username or leave empty...",
+    Text = "",
+    Callback = function(t) cloneTargetName = t end,
+})
+
+CloneTab:CreateButton({
+    Name = "🪞 Spawn Clone",
+    Callback = function()
+        local _, result = spawnClone(cloneTargetName)
+        if result == "ok" then
+            notify("✦ Cloned", "Cloned " .. (cloneTargetName ~= "" and cloneTargetName or LocalPlayer.Name) .. "!", 4)
+        elseif result == "notfound" then
+            notify("✦ Not Found", "❌ Player not in server.", 4)
+        else
+            notify("✦ Error", "❌ No character found.", 4)
+        end
+    end,
+})
+
+CloneTab:CreateButton({
+    Name = "🗑️ Remove All Clones",
+    Callback = function()
+        removeAllClones()
+        notify("✦ Removed", "All clones destroyed.")
+    end,
+})
+
+CloneTab:CreateButton({
+    Name = "📊 Clone Count",
+    Callback = function()
+        local active = {}
+        for _, c in pairs(clones) do if c and c.Parent then table.insert(active, c) end end
+        clones = active
+        notify("✦ Clones", "Active: " .. #clones)
+    end,
+})
+
+-- ===== WORLD TAB =====
+local WorldTab = Window:CreateTab("✦ World", 4483362458)
+
+WorldTab:CreateSection("🌍 Environment")
+
+WorldTab:CreateSlider({
+    Name = "Time of Day",
+    Range = {0, 24},
+    Increment = 1,
+    Suffix = ":00",
+    CurrentValue = 14,
+    Flag = "TimeOfDay",
+    Callback = function(v) Lighting.ClockTime = v end,
+})
+
+WorldTab:CreateSlider({
+    Name = "Brightness",
+    Range = {0, 10},
+    Increment = 0.5,
+    Suffix = "x",
+    CurrentValue = 1,
+    Flag = "Brightness",
+    Callback = function(v) Lighting.Brightness = v end,
+})
+
+WorldTab:CreateToggle({
+    Name = "Always Day",
+    CurrentValue = false,
+    Flag = "AlwaysDay",
+    Callback = function(v) Lighting.ClockTime = v and 14 or 14 end,
+})
+
+WorldTab:CreateToggle({
+    Name = "Always Night",
+    CurrentValue = false,
+    Flag = "AlwaysNight",
+    Callback = function(v) Lighting.ClockTime = v and 0 or 14 end,
+})
+
+WorldTab:CreateSection("🌦️ Weather")
+
+WorldTab:CreateButton({
+    Name = "☀️ Clear Weather",
+    Callback = function()
+        Lighting.FogEnd = 100000
+        Lighting.FogStart = 0
+        for _, v in pairs(Lighting:GetChildren()) do
+            if v:IsA("Atmosphere") then pcall(function() v.Density = 0 end) end
+        end
+        notify("✦ Clear", "Weather cleared.")
+    end,
+})
+
+WorldTab:CreateButton({
+    Name = "🌫️ Enable Fog",
+    Callback = function()
+        Lighting.FogEnd = 80
+        Lighting.FogStart = 0
+        Lighting.FogColor = Color3.fromRGB(180,180,180)
+        notify("✦ Fog", "Thick fog enabled.")
+    end,
+})
+
+WorldTab:CreateButton({
+    Name = "🌑 Dark World",
+    Callback = function()
+        Lighting.Brightness = 0
+        Lighting.ClockTime = 0
+        Lighting.Ambient = Color3.fromRGB(0,0,0)
+        Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
+        notify("✦ Dark", "World darkened.")
+    end,
+})
+
+WorldTab:CreateButton({
+    Name = "🌅 Reset World",
+    Callback = function()
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 14
+        Lighting.Ambient = Color3.fromRGB(128,128,128)
+        Lighting.OutdoorAmbient = Color3.fromRGB(128,128,128)
+        Lighting.FogEnd = 100000
+        notify("✦ Reset", "World restored.")
+    end,
+})
+
+-- ===== PERFORMANCE TAB =====
+local PerfTab = Window:CreateTab("✦ Performance", 4483362458)
+
+PerfTab:CreateSection("🚀 FPS Booster")
+PerfTab:CreateToggle({
+    Name = "FPS Boost",
+    Info = "Removes all effects for max FPS",
+    CurrentValue = false,
+    Flag = "FPSBoost",
+    Callback = function(v)
+        if v then applyFPS() notify("✦ FPS Boost ON", "All effects removed.", 4)
+        else removeFPS() notify("✦ FPS Boost OFF", "Visuals restored.") end
+    end,
+})
+
+PerfTab:CreateSection("🎨 Visual Tweaks")
+
+PerfTab:CreateToggle({
+    Name = "Remove Shadows",
+    CurrentValue = false,
+    Flag = "NoShadows",
+    Callback = function(v) Lighting.GlobalShadows = not v end,
+})
+
+PerfTab:CreateToggle({
+    Name = "Remove Fog",
+    CurrentValue = false,
+    Flag = "NoFog",
+    Callback = function(v) Lighting.FogEnd = v and 100000 or 1000 end,
+})
+
+PerfTab:CreateToggle({
+    Name = "Remove Particles",
+    CurrentValue = false,
+    Flag = "NoParticles",
+    Callback = function(v)
+        for _, obj in pairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or obj:IsA("Smoke") or
+                   obj:IsA("Sparkles") or obj:IsA("Beam") or obj:IsA("Trail") then
+                    obj.Enabled = not v
+                end
+            end)
+        end
+    end,
+})
+
+PerfTab:CreateToggle({
+    Name = "Remove Post FX",
+    CurrentValue = false,
+    Flag = "NoPostFX",
+    Callback = function(v)
+        for _, e in pairs(Lighting:GetChildren()) do
+            if e:IsA("PostEffect") then pcall(function() e.Enabled = not v end) end
+        end
+    end,
+})
+
+PerfTab:CreateToggle({
+    Name = "Remove Atmosphere",
+    CurrentValue = false,
+    Flag = "NoAtmosphere",
+    Callback = function(v)
+        for _, e in pairs(Lighting:GetChildren()) do
+            if e:IsA("Atmosphere") then pcall(function() e.Enabled = not v end) end
+        end
+    end,
+})
+
+PerfTab:CreateSlider({
+    Name = "Render Distance",
+    Info = "Lower = more FPS",
+    Range = {64, 2048},
+    Increment = 64,
+    Suffix = " studs",
+    CurrentValue = 512,
+    Flag = "RenderDist",
+    Callback = function(v)
+        pcall(function()
+            workspace.StreamingMinRadius = v / 4
+            workspace.StreamingTargetRadius = v
+        end)
+    end,
+})
+
+-- ===== LOADED =====
+notify(
+    "✦ Nexo Hub v5.0",
+    isEarlyAccess and "Early Access! Welcome, " .. LocalPlayer.Name .. " 👻"
+        or "Ready! Welcome, " .. LocalPlayer.Name .. ".",
+    6
+)
