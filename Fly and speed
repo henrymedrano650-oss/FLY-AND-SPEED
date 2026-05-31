@@ -1,4 +1,4 @@
--- Nexo Script Hub v5.0
+-- Nexo Hub v6.0 Rework
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -166,7 +166,7 @@ end
 
 submitBtn.MouseButton1Click:Connect(function()
     local txt = inputBox.Text
-    if txt == "Nexo10" or txt == "TestEarly" then
+    if txt == "Nexo100" or txt == "TestEarly" then
         enteredKey = txt
         TweenService:Create(frame, TweenInfo.new(0.4), {
             BackgroundTransparency=1,
@@ -210,7 +210,7 @@ local logo = Instance.new("TextLabel", loadGui)
 logo.Size = UDim2.new(0,520,0,95)
 logo.Position = UDim2.new(0.5,-260,0.5,-165)
 logo.BackgroundTransparency = 1
-logo.Text = "✦ NEXO HUB ✦"
+logo.Text = "✦ NEXO HUB v6.0 ✦"
 logo.TextScaled = true
 logo.Font = Enum.Font.GothamBold
 logo.TextTransparency = 1
@@ -224,7 +224,7 @@ local loadSub = Instance.new("TextLabel", loadGui)
 loadSub.Size = UDim2.new(0,400,0,28)
 loadSub.Position = UDim2.new(0.5,-200,0.5,-68)
 loadSub.BackgroundTransparency = 1
-loadSub.Text = enteredKey == "TestEarly" and "✦ Early Access  •  v5.0" or "Premium Script Hub  •  v5.0"
+loadSub.Text = enteredKey == "TestEarly" and "✦ Early Access  •  v6.0" or "Premium Script Hub  •  v6.0"
 loadSub.TextScaled = true
 loadSub.Font = Enum.Font.Gotham
 loadSub.TextColor3 = Color3.fromRGB(150,120,200)
@@ -263,7 +263,7 @@ local verTxt = Instance.new("TextLabel", loadGui)
 verTxt.Size = UDim2.new(0,300,0,20)
 verTxt.Position = UDim2.new(0.5,-150,0.5,78)
 verTxt.BackgroundTransparency = 1
-verTxt.Text = "v5.0  •  Nexo Hub  •  by Nexo"
+verTxt.Text = "v6.0  •  Nexo Hub  •  by Nexo"
 verTxt.TextScaled = true
 verTxt.Font = Enum.Font.Gotham
 verTxt.TextColor3 = Color3.fromRGB(90,70,130)
@@ -274,24 +274,25 @@ TweenService:Create(loadSub, TweenInfo.new(0.8,Enum.EasingStyle.Quad), {TextTran
 task.wait(0.8)
 
 local steps = {
-    {"⚙️  Loading core modules...",  0.14, 0.7},
-    {"🔗  Connecting to services...", 0.28, 0.7},
-    {"🔑  Verifying key...",           0.43, 0.6},
-    {"🛠️  Building interface...",      0.58, 0.7},
-    {"⚡  Applying features...",       0.72, 0.6},
-    {"🚀  Optimizing...",              0.86, 0.6},
-    {"✦  Welcome to Nexo Hub!",       1.00, 0.5},
+    {"⚙️  Loading core modules...",   0.14, 0.6},
+    {"🔗  Connecting services...",     0.28, 0.6},
+    {"🔑  Verifying key...",            0.40, 0.5},
+    {"✈️  Loading fly system...",       0.52, 0.5},
+    {"😈  Loading troll features...",   0.64, 0.5},
+    {"🛠️  Building interface...",       0.76, 0.5},
+    {"⚡  Applying features...",        0.88, 0.4},
+    {"✦  Welcome to Nexo Hub v6.0!",  1.00, 0.4},
 }
 
 for _, s in ipairs(steps) do
     statusTxt.Text = s[1]
-    TweenService:Create(barFill, TweenInfo.new(0.4,Enum.EasingStyle.Quad), {
+    TweenService:Create(barFill, TweenInfo.new(0.35,Enum.EasingStyle.Quad), {
         Size=UDim2.new(s[2],0,1,0)
     }):Play()
     task.wait(s[3])
 end
 
-task.wait(0.6)
+task.wait(0.5)
 for _, obj in pairs({logo, loadSub, statusTxt, verTxt}) do
     TweenService:Create(obj, TweenInfo.new(0.5), {TextTransparency=1}):Play()
 end
@@ -313,25 +314,35 @@ local isMobile = UserInputService.TouchEnabled and not UserInputService.Keyboard
 -- ========== STATE ==========
 local currentWalkSpeed = 16
 local currentJumpPower = 50
+local flyEnabled = false
+local flySpeed = 50
+local flyAcceleration = 1
 local noclipEnabled = false
 local invisEnabled = false
-local flyEnabled = false
 local godModeEnabled = false
 local infiniteJumpEnabled = false
-local flySpeed = 50
+local speedBoostActive = false
 local buttonsLocked = false
+local statLoop = nil
+local flyConn = nil
 local noclipConn = nil
 local invisConn = nil
 local descendantConn = nil
-local flyConn = nil
-local statLoop = nil
-local origCollision = {}
-local origTransparency = {}
 local flyBV = nil
 local flyBG = nil
 local flyUpHeld = false
 local flyDownHeld = false
 local mobileGui = nil
+local origCollision = {}
+local origTransparency = {}
+local clones = {}
+local highlights = {}
+local highlightConn = nil
+local chatLog = {}
+local chatLogEnabled = false
+local antiAfkThread = nil
+local antiAfkEnabled = false
+local currentFlyVel = Vector3.zero
 
 -- ========== STAT LOOP ==========
 local function startStatLoop()
@@ -342,7 +353,7 @@ local function startStatLoop()
         if Humanoid.UseJumpPower then
             if Humanoid.JumpPower ~= currentJumpPower then Humanoid.JumpPower = currentJumpPower end
         else
-            local jh = (currentJumpPower * currentJumpPower) / (2 * workspace.Gravity)
+            local jh = (currentJumpPower*currentJumpPower)/(2*workspace.Gravity)
             if math.abs(Humanoid.JumpHeight - jh) > 0.1 then Humanoid.JumpHeight = jh end
         end
         if godModeEnabled then
@@ -494,6 +505,7 @@ local function cleanFly()
     if flyConn then flyConn:Disconnect() flyConn = nil end
     if flyBV and flyBV.Parent then flyBV:Destroy() flyBV = nil end
     if flyBG and flyBG.Parent then flyBG:Destroy() flyBG = nil end
+    currentFlyVel = Vector3.zero
 end
 
 local function createMobileFlyButtons()
@@ -506,24 +518,24 @@ local function createMobileFlyButtons()
 
     local function makeBtn(text, pos, onDown, onUp)
         local btn = Instance.new("TextButton", mobileGui)
-        btn.Size = UDim2.new(0,52,0,52)
+        btn.Size = UDim2.new(0,56,0,56)
         btn.Position = pos
         btn.BackgroundColor3 = Color3.fromRGB(100,50,220)
-        btn.BackgroundTransparency = 0.2
+        btn.BackgroundTransparency = 0.15
         btn.Text = text
         btn.TextScaled = true
         btn.Font = Enum.Font.GothamBold
         btn.TextColor3 = Color3.fromRGB(255,255,255)
         btn.BorderSizePixel = 0
         btn.ZIndex = 10
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,12)
         Instance.new("UIGradient", btn).Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, Color3.fromRGB(160,60,255)),
             ColorSequenceKeypoint.new(1, Color3.fromRGB(60,140,255)),
         })
         local stroke = Instance.new("UIStroke", btn)
-        stroke.Color = Color3.fromRGB(180,100,255)
-        stroke.Thickness = 1.5
+        stroke.Color = Color3.fromRGB(200,120,255)
+        stroke.Thickness = 2
         btn.InputBegan:Connect(function(i)
             if i.UserInputType == Enum.UserInputType.Touch then onDown() end
         end)
@@ -534,16 +546,16 @@ local function createMobileFlyButtons()
         return btn
     end
 
-    makeBtn("⬆", UDim2.new(1,-130,1,-140),
+    makeBtn("⬆", UDim2.new(1,-130,1,-145),
         function() flyUpHeld = true end,
         function() flyUpHeld = false end)
-    makeBtn("⬇", UDim2.new(1,-68,1,-140),
+    makeBtn("⬇", UDim2.new(1,-65,1,-145),
         function() flyDownHeld = true end,
         function() flyDownHeld = false end)
 
     local lockLbl = Instance.new("TextLabel", mobileGui)
-    lockLbl.Size = UDim2.new(0,110,0,20)
-    lockLbl.Position = UDim2.new(1,-140,1,-165)
+    lockLbl.Size = UDim2.new(0,120,0,22)
+    lockLbl.Position = UDim2.new(1,-140,1,-170)
     lockLbl.BackgroundTransparency = 1
     lockLbl.Text = "🔓 Drag"
     lockLbl.TextScaled = true
@@ -575,32 +587,34 @@ local function enableFly()
     flyBG = Instance.new("BodyGyro")
     flyBG.Name = "NexoFlyGyro"
     flyBG.MaxTorque = Vector3.new(1e6,1e6,1e6)
-    flyBG.P = 5000
-    flyBG.D = 100
+    flyBG.P = 8000
+    flyBG.D = 200
     flyBG.CFrame = RootPart.CFrame
     flyBG.Parent = RootPart
     if isMobile then createMobileFlyButtons() end
-    flyConn = RunService.Heartbeat:Connect(function()
+    flyConn = RunService.Heartbeat:Connect(function(dt)
         if not flyEnabled then return end
         if not RootPart or not RootPart.Parent then return end
         if not flyBV or not flyBV.Parent then return end
         if not flyBG or not flyBG.Parent then return end
         local cam = workspace.CurrentCamera
-        local dir = Vector3.zero
+        local targetDir = Vector3.zero
         if isMobile then
             local md = Humanoid.MoveDirection
-            if md.Magnitude > 0 then dir = dir + Vector3.new(md.X,0,md.Z) end
-            if flyUpHeld then dir = dir + Vector3.new(0,1,0) end
-            if flyDownHeld then dir = dir + Vector3.new(0,-1,0) end
+            if md.Magnitude > 0 then targetDir = targetDir + Vector3.new(md.X,0,md.Z) end
+            if flyUpHeld then targetDir = targetDir + Vector3.new(0,1,0) end
+            if flyDownHeld then targetDir = targetDir + Vector3.new(0,-1,0) end
         else
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir + Vector3.new(0,-1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then targetDir = targetDir + cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then targetDir = targetDir - cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then targetDir = targetDir - cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then targetDir = targetDir + cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then targetDir = targetDir + Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then targetDir = targetDir + Vector3.new(0,-1,0) end
         end
-        flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * flySpeed or Vector3.zero
+        local targetVel = targetDir.Magnitude > 0 and targetDir.Unit * flySpeed or Vector3.zero
+        currentFlyVel = currentFlyVel:Lerp(targetVel, math.clamp(flyAcceleration * dt * 10, 0, 1))
+        flyBV.Velocity = currentFlyVel
         flyBG.CFrame = cam.CFrame
     end)
 end
@@ -611,6 +625,153 @@ local function disableFly()
     removeMobileFlyButtons()
     if Humanoid then Humanoid.PlatformStand = false end
 end
+
+-- ========== CLONE ==========
+local function spawnClone(targetName)
+    local sourceChar = Character
+    if targetName and targetName ~= "" then
+        local target = nil
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Name:lower():find(targetName:lower(), 1, true) then target = p; break end
+        end
+        if not target then return nil, "notfound" end
+        if not target.Character then return nil, "nochar" end
+        sourceChar = target.Character
+    end
+    if not sourceChar then return nil, "nochar" end
+    local ok, clone = pcall(function() return sourceChar:Clone() end)
+    if not ok or not clone then return nil, "clonefail" end
+    clone.Name = LocalPlayer.Name .. "_Clone"
+    for _, v in pairs(clone:GetDescendants()) do
+        if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ModuleScript") then v:Destroy() end
+    end
+    local anim = clone:FindFirstChild("Animate")
+    if anim then anim:Destroy() end
+    local hum = clone:FindFirstChildOfClass("Humanoid")
+    if hum then hum:Destroy() end
+    local sr = sourceChar:FindFirstChild("HumanoidRootPart")
+    local cp = clone:FindFirstChild("HumanoidRootPart") or clone.PrimaryPart
+    if sr and cp then
+        clone.PrimaryPart = cp
+        pcall(function() clone:SetPrimaryPartCFrame(sr.CFrame * CFrame.new(4,0,0)) end)
+    end
+    for _, p in pairs(clone:GetDescendants()) do
+        if p:IsA("BasePart") then p.Anchored = true p.CanCollide = false end
+    end
+    clone.Parent = workspace
+    table.insert(clones, clone)
+    return clone, "ok"
+end
+
+local function removeAllClones()
+    for _, c in pairs(clones) do if c and c.Parent then c:Destroy() end end
+    clones = {}
+end
+
+-- ========== HIGHLIGHTS ==========
+local function addHighlights()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            if not highlights[p] or not highlights[p].Parent then
+                for _, existing in pairs(p.Character:GetChildren()) do
+                    if existing:IsA("Highlight") then existing:Destroy() end
+                end
+                local hl = Instance.new("Highlight")
+                hl.FillColor = Color3.fromRGB(255,50,50)
+                hl.OutlineColor = Color3.fromRGB(255,255,255)
+                hl.FillTransparency = 0.5
+                hl.OutlineTransparency = 0
+                hl.Adornee = p.Character
+                hl.Parent = p.Character
+                highlights[p] = hl
+            end
+        end
+    end
+end
+
+local function removeHighlights()
+    for _, hl in pairs(highlights) do
+        if hl and hl.Parent then pcall(function() hl:Destroy() end) end
+    end
+    highlights = {}
+end
+
+-- ========== TROLL - FLING ==========
+local function flingPlayer(targetName)
+    local target = nil
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Name:lower():find(targetName:lower(), 1, true) then
+            target = p
+            break
+        end
+    end
+    if not target or not target.Character then return false end
+    local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+    if not tRoot or not RootPart then return false end
+
+    -- Teleport on top of target
+    RootPart.CFrame = tRoot.CFrame * CFrame.new(0,3,0)
+    task.wait(0.05)
+
+    -- Apply massive velocity using BodyVelocity on their root
+    local fv = Instance.new("BodyVelocity")
+    fv.MaxForce = Vector3.new(1e9,1e9,1e9)
+    fv.Velocity = Vector3.new(
+        math.random(-200,200),
+        math.random(300,600),
+        math.random(-200,200)
+    )
+    fv.Parent = tRoot
+
+    -- Also apply to local player for extra force
+    local myFV = Instance.new("BodyVelocity")
+    myFV.MaxForce = Vector3.new(1e9,1e9,1e9)
+    myFV.Velocity = Vector3.new(
+        math.random(-100,100),
+        math.random(200,400),
+        math.random(-100,100)
+    )
+    myFV.Parent = RootPart
+
+    task.delay(0.2, function()
+        pcall(function() if fv.Parent then fv:Destroy() end end)
+        pcall(function() if myFV.Parent then myFV:Destroy() end end)
+    end)
+
+    return true
+end
+
+-- ========== CHAT LOG ==========
+local function hookChat(p)
+    p.Chatted:Connect(function(msg)
+        if not chatLogEnabled then return end
+        local entry = string.format("[%s]: %s", p.Name, msg)
+        table.insert(chatLog, 1, entry)
+        if #chatLog > 50 then table.remove(chatLog) end
+    end)
+end
+for _, p in pairs(Players:GetPlayers()) do hookChat(p) end
+Players.PlayerAdded:Connect(hookChat)
+
+-- ========== INFINITE JUMP ==========
+UserInputService.JumpRequest:Connect(function()
+    if infiniteJumpEnabled and Humanoid and Humanoid.Parent then
+        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- ========== SPEED BOOST ==========
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if speedBoostActive and input.KeyCode == Enum.KeyCode.E then
+        if Humanoid then Humanoid.WalkSpeed = currentWalkSpeed * 2.5 end
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if speedBoostActive and input.KeyCode == Enum.KeyCode.E then
+        if Humanoid then Humanoid.WalkSpeed = currentWalkSpeed end
+    end
+end)
 
 -- ========== RESPAWN ==========
 LocalPlayer.CharacterAdded:Connect(function(char)
@@ -624,6 +785,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if flyEnabled then task.wait(0.1) enableFly() end
 end)
 
+-- ========== HELPERS ==========
 local function notify(title, content, dur)
     Rayfield:Notify({Title=title, Content=content, Duration=dur or 3, Image=4483362458})
 end
@@ -636,27 +798,21 @@ local function findPlayer(name)
     return nil
 end
 
-UserInputService.JumpRequest:Connect(function()
-    if infiniteJumpEnabled and Humanoid and Humanoid.Parent then
-        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
 -- ========== MAIN UI ==========
 local Window = Rayfield:CreateWindow({
-    Name = "✦ Nexo Hub",
+    Name = "✦ Nexo Hub v6.0",
     Icon = 0,
-    LoadingTitle = "✦ Nexo Hub",
-    LoadingSubtitle = "by Nexo  •  v5.0",
+    LoadingTitle = "✦ Nexo Hub v6.0",
+    LoadingSubtitle = "by Nexo  •  Rework Edition",
     Theme = "Amethyst",
     DisableRayfieldPrompts = false,
     DisableBuildWarnings = false,
 })
 
 -- ===== MOVEMENT TAB =====
-local MoveTab = Window:CreateTab("✦ Movement", 4483362458)
+local MoveTab = Window:CreateTab("✈️ Movement", 4483362458)
 
-MoveTab:CreateSection("✈️ Fly")
+MoveTab:CreateSection("✈️ Fly System")
 MoveTab:CreateToggle({
     Name = "Enable Fly",
     Info = isMobile and "Joystick = Move | ⬆⬇ = Up/Down" or "WASD = Move | Space = Up | Shift = Down",
@@ -664,8 +820,8 @@ MoveTab:CreateToggle({
     Flag = "FlyToggle",
     Callback = function(v)
         flyEnabled = v
-        if v then enableFly() notify("✦ Fly ON", isMobile and "Use joystick + ⬆⬇!" or "WASD + Space/Shift.")
-        else disableFly() notify("✦ Fly OFF", "Disabled.") end
+        if v then enableFly() notify("✈️ Fly ON", isMobile and "Joystick + ⬆⬇!" or "WASD + Space/Shift.")
+        else disableFly() notify("✈️ Fly OFF", "Disabled.") end
     end,
 })
 
@@ -679,6 +835,17 @@ MoveTab:CreateSlider({
     Callback = function(v) flySpeed = v end,
 })
 
+MoveTab:CreateSlider({
+    Name = "Fly Acceleration",
+    Info = "Higher = snappier response",
+    Range = {1, 10},
+    Increment = 0.5,
+    Suffix = "x",
+    CurrentValue = 1,
+    Flag = "FlyAccel",
+    Callback = function(v) flyAcceleration = v end,
+})
+
 if isMobile then
     MoveTab:CreateToggle({
         Name = "🔒 Lock Fly Buttons",
@@ -686,7 +853,7 @@ if isMobile then
         Flag = "LockBtns",
         Callback = function(v)
             buttonsLocked = v
-            notify(v and "✦ Locked" or "✦ Unlocked", v and "Buttons fixed." or "Drag enabled.")
+            notify(v and "✦ Locked" or "✦ Unlocked", v and "Fixed." or "Drag enabled.")
         end,
     })
 end
@@ -694,26 +861,24 @@ end
 MoveTab:CreateSection("🚫 Noclip")
 MoveTab:CreateToggle({
     Name = "Enable Noclip",
-    Info = "Phase through every wall",
     CurrentValue = false,
     Flag = "NoclipToggle",
     Callback = function(v)
         noclipEnabled = v
-        if v then enableNoclip() notify("✦ Noclip ON", "Walk through anything.")
-        else disableNoclip() notify("✦ Noclip OFF", "Collision restored.") end
+        if v then enableNoclip() notify("🚫 Noclip ON", "Walk through anything.")
+        else disableNoclip() notify("🚫 Noclip OFF", "Collision restored.") end
     end,
 })
 
 MoveTab:CreateSection("👻 Invisible")
 MoveTab:CreateToggle({
     Name = "Enable Invisible",
-    Info = "Every part enforced invisible every frame",
     CurrentValue = false,
     Flag = "InvisToggle",
     Callback = function(v)
         invisEnabled = v
-        if v then enableInvis() notify("✦ Invisible ON", "Fully invisible. 👻")
-        else disableInvis() notify("✦ Invisible OFF", "Visible again.") end
+        if v then enableInvis() notify("👻 Invisible ON", "Fully invisible.")
+        else disableInvis() notify("👻 Invisible OFF", "Visible again.") end
     end,
 })
 
@@ -727,10 +892,8 @@ MoveTab:CreateButton({
                     pcall(function() p.Transparency = 1 end)
                 end
             end
-            notify("✦ Refreshed", "All parts re-hidden.")
-        else
-            notify("✦ Not Active", "Enable invisible first!")
-        end
+            notify("🔄 Refreshed", "All parts re-hidden.")
+        else notify("✦ Not Active", "Enable invisible first!") end
     end,
 })
 
@@ -741,27 +904,26 @@ MoveTab:CreateToggle({
     Flag = "InfJump",
     Callback = function(v)
         infiniteJumpEnabled = v
-        notify(v and "✦ Infinite Jump ON" or "✦ Infinite Jump OFF",
+        notify(v and "🦘 Infinite Jump ON" or "🦘 Infinite Jump OFF",
             v and "Jump infinitely!" or "Disabled.")
     end,
 })
 
 -- ===== PLAYER TAB =====
-local PlayerTab = Window:CreateTab("✦ Player", 4483362458)
+local PlayerTab = Window:CreateTab("⚡ Player", 4483362458)
 
 PlayerTab:CreateSection("⚡ Stats")
-
 PlayerTab:CreateButton({
     Name = "📊 My Info",
     Callback = function()
-        if not Humanoid then notify("✦ Error", "No character!") return end
+        if not Humanoid then return end
         notify("✦ " .. LocalPlayer.Name, string.format(
-            "👤 %s\n❤️ HP: %s / %s\n🚶 Speed: %s\n⬆️ Jump: %s\n📅 Age: %s days",
+            "👤 %s\n❤️ HP: %s/%s\n🚶 Speed: %s\n⬆️ Jump: %s\n📅 Age: %s days\n🆔 ID: %s",
             LocalPlayer.Name,
             math.floor(Humanoid.Health), math.floor(Humanoid.MaxHealth),
             math.floor(Humanoid.WalkSpeed), math.floor(Humanoid.JumpPower),
-            LocalPlayer.AccountAge
-        ), 7)
+            LocalPlayer.AccountAge, LocalPlayer.UserId
+        ), 8)
     end,
 })
 
@@ -794,6 +956,18 @@ PlayerTab:CreateSlider({
     end,
 })
 
+PlayerTab:CreateToggle({
+    Name = "⚡ Speed Boost (Hold E)",
+    Info = "Hold E to sprint at 2.5x speed",
+    CurrentValue = false,
+    Flag = "SpeedBoost",
+    Callback = function(v)
+        speedBoostActive = v
+        notify(v and "⚡ Speed Boost ON" or "⚡ Speed Boost OFF",
+            v and "Hold E to sprint!" or "Disabled.")
+    end,
+})
+
 PlayerTab:CreateButton({
     Name = "🔄 Reset Stats",
     Callback = function()
@@ -809,7 +983,6 @@ PlayerTab:CreateButton({
 })
 
 PlayerTab:CreateSection("🎭 Character")
-
 PlayerTab:CreateButton({
     Name = "💊 Full Heal",
     Callback = function()
@@ -855,7 +1028,6 @@ PlayerTab:CreateButton({
 })
 
 PlayerTab:CreateSection("🔍 Player Lookup")
-
 local lookupName = ""
 PlayerTab:CreateInput({
     Name = "Player Name",
@@ -873,7 +1045,7 @@ PlayerTab:CreateButton({
         local c = t.Character
         local h = c and c:FindFirstChildOfClass("Humanoid")
         notify("✦ " .. t.Name, string.format(
-            "👤 %s\n❤️ HP: %s / %s\n🏆 Team: %s\n📅 Age: %s days\n🆔 ID: %s",
+            "👤 %s\n❤️ HP: %s/%s\n🏆 Team: %s\n📅 Age: %s days\n🆔 ID: %s",
             t.Name,
             h and math.floor(h.Health) or "N/A",
             h and math.floor(h.MaxHealth) or "N/A",
@@ -893,8 +1065,240 @@ PlayerTab:CreateButton({
     end,
 })
 
+-- ===== TROLL TAB =====
+local TrollTab = Window:CreateTab("😈 Troll", 4483362458)
+
+TrollTab:CreateSection("🎯 Target")
+local trollTarget = ""
+TrollTab:CreateInput({
+    Name = "Target Player",
+    Info = "Type username to troll — leave empty for nearest",
+    Placeholder = "Username...",
+    Text = "",
+    Callback = function(t) trollTarget = t end,
+})
+
+local function getTrollTarget()
+    if trollTarget ~= "" then
+        return findPlayer(trollTarget)
+    end
+    -- Find nearest
+    local closest = nil
+    local closestDist = 999
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local root = p.Character:FindFirstChild("HumanoidRootPart")
+            if root and RootPart then
+                local dist = (root.Position - RootPart.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = p
+                end
+            end
+        end
+    end
+    return closest
+end
+
+TrollTab:CreateSection("💥 Fling")
+
+TrollTab:CreateButton({
+    Name = "💥 Fling Player",
+    Info = "Launches the target player into the air",
+    Callback = function()
+        local target = getTrollTarget()
+        if not target then
+            notify("✦ No Target", "No player found!")
+            return
+        end
+        local ok = flingPlayer(target.Name)
+        notify(ok and "💥 Flung!" or "✦ Error",
+            ok and target.Name .. " has been flung! 😂" or "Could not fling.")
+    end,
+})
+
+TrollTab:CreateButton({
+    Name = "💥 Mega Fling",
+    Info = "Extreme version — sends them flying much higher",
+    Callback = function()
+        local target = getTrollTarget()
+        if not target or not target.Character then
+            notify("✦ No Target", "No player found!")
+            return
+        end
+        local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+        if not tRoot or not RootPart then return end
+        RootPart.CFrame = tRoot.CFrame * CFrame.new(0,2,0)
+        task.wait(0.05)
+        local fv = Instance.new("BodyVelocity")
+        fv.MaxForce = Vector3.new(1e9,1e9,1e9)
+        fv.Velocity = Vector3.new(
+            math.random(-500,500),
+            math.random(800,1500),
+            math.random(-500,500)
+        )
+        fv.Parent = tRoot
+        task.delay(0.15, function() pcall(function() fv:Destroy() end) end)
+        notify("🚀 MEGA FLUNG!", target.Name .. " sent to space! 🌙", 4)
+    end,
+})
+
+TrollTab:CreateSection("🌀 Spin")
+
+local spinConn = nil
+local spinTarget = nil
+TrollTab:CreateToggle({
+    Name = "🌀 Spin Player",
+    Info = "Continuously spins the target player",
+    CurrentValue = false,
+    Flag = "SpinTroll",
+    Callback = function(v)
+        if v then
+            local target = getTrollTarget()
+            if not target or not target.Character then
+                notify("✦ No Target", "No player found!")
+                return
+            end
+            spinTarget = target
+            local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+            if not tRoot then return end
+            if spinConn then spinConn:Disconnect() end
+            local bg = Instance.new("BodyAngularVelocity")
+            bg.AngularVelocity = Vector3.new(0, 50, 0)
+            bg.MaxTorque = Vector3.new(0,1e9,0)
+            bg.Parent = tRoot
+            spinConn = task.spawn(function()
+                while v do
+                    task.wait(0.1)
+                    if not spinTarget or not spinTarget.Character then break end
+                end
+                pcall(function() bg:Destroy() end)
+            end)
+            notify("🌀 Spinning", target.Name .. " is now spinning!")
+        else
+            if spinConn then task.cancel(spinConn) spinConn = nil end
+            notify("🌀 Spin OFF", "Stopped.")
+        end
+    end,
+})
+
+TrollTab:CreateSection("📍 Follow")
+
+local followConn = nil
+local followEnabled = false
+TrollTab:CreateToggle({
+    Name = "📍 Follow Player",
+    Info = "Constantly teleports to follow the target",
+    CurrentValue = false,
+    Flag = "FollowTroll",
+    Callback = function(v)
+        followEnabled = v
+        if v then
+            local target = getTrollTarget()
+            if not target then
+                notify("✦ No Target", "No player found!")
+                return
+            end
+            if followConn then task.cancel(followConn) end
+            followConn = task.spawn(function()
+                while followEnabled do
+                    if target and target.Character then
+                        local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+                        if tRoot and RootPart then
+                            RootPart.CFrame = tRoot.CFrame * CFrame.new(2,0,2)
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+            notify("📍 Following", "Following " .. target.Name .. "!")
+        else
+            if followConn then task.cancel(followConn) followConn = nil end
+            notify("📍 Follow OFF", "Stopped following.")
+        end
+    end,
+})
+
+TrollTab:CreateSection("😵 Confuse")
+
+TrollTab:CreateButton({
+    Name = "😵 Confuse Camera (Self)",
+    Info = "Flips your own camera for a dizzy effect",
+    Callback = function()
+        local cam = workspace.CurrentCamera
+        for i = 1, 10 do
+            task.wait(0.1)
+            pcall(function()
+                cam.CFrame = cam.CFrame * CFrame.Angles(0, 0, math.pi)
+            end)
+        end
+        notify("😵 Dizzy!", "Camera confused for 1 second!")
+    end,
+})
+
+TrollTab:CreateButton({
+    Name = "🏃 Swap Position",
+    Info = "Swaps your position with the target player",
+    Callback = function()
+        local target = getTrollTarget()
+        if not target or not target.Character then
+            notify("✦ No Target", "No player found!")
+            return
+        end
+        local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+        if not tRoot or not RootPart then return end
+        local myCFrame = RootPart.CFrame
+        local theirCFrame = tRoot.CFrame
+        RootPart.CFrame = theirCFrame
+        tRoot.CFrame = myCFrame
+        notify("🏃 Swapped!", "Position swapped with " .. target.Name .. "!")
+    end,
+})
+
+-- ===== CLONE TAB =====
+local CloneTab = Window:CreateTab("🪞 Clone", 4483362458)
+CloneTab:CreateSection("🪞 Clone System")
+
+local cloneTargetName = ""
+CloneTab:CreateInput({
+    Name = "Clone Target",
+    Info = "Leave empty to clone yourself",
+    Placeholder = "Username or leave empty...",
+    Text = "",
+    Callback = function(t) cloneTargetName = t end,
+})
+
+CloneTab:CreateButton({
+    Name = "🪞 Spawn Clone",
+    Callback = function()
+        local _, result = spawnClone(cloneTargetName)
+        if result == "ok" then notify("🪞 Cloned", "Clone spawned!", 4)
+        elseif result == "notfound" then notify("✦ Not Found", "❌ Not in server.", 4)
+        elseif result == "clonefail" then notify("✦ Error", "❌ Clone failed.", 4)
+        else notify("✦ Error", "❌ No character.", 4) end
+    end,
+})
+
+CloneTab:CreateButton({
+    Name = "🗑️ Remove All Clones",
+    Callback = function()
+        removeAllClones()
+        notify("🗑️ Removed", "All clones destroyed.")
+    end,
+})
+
+CloneTab:CreateButton({
+    Name = "📊 Clone Count",
+    Callback = function()
+        local active = {}
+        for _, c in pairs(clones) do if c and c.Parent then table.insert(active, c) end end
+        clones = active
+        notify("📊 Clones", "Active: " .. #clones)
+    end,
+})
+
 -- ===== TELEPORT TAB =====
-local TpTab = Window:CreateTab("✦ Teleport", 4483362458)
+local TpTab = Window:CreateTab("🌀 Teleport", 4483362458)
 TpTab:CreateSection("🌀 Teleport")
 
 local tpName = ""
@@ -908,7 +1312,7 @@ TpTab:CreateInput({
 TpTab:CreateButton({
     Name = "🌀 Teleport to Player",
     Callback = function()
-        if tpName == "" then notify("✦ Error", "Type a name first!") return end
+        if tpName == "" then notify("✦ Error", "Type a name!") return end
         local target = findPlayer(tpName)
         if not target then notify("✦ Not Found", "Not in server.") return end
         local tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
@@ -920,23 +1324,21 @@ TpTab:CreateButton({
     end,
 })
 
-TpTab:CreateSection("🆔 Teleport by User ID")
-
+TpTab:CreateSection("🆔 By User ID")
 local tpUserID = ""
 TpTab:CreateInput({
     Name = "User ID",
-    Info = "Enter a Roblox User ID",
     Placeholder = "e.g. 123456789",
     Text = "",
     Callback = function(t) tpUserID = t end,
 })
 
 TpTab:CreateButton({
-    Name = "🌀 Teleport by User ID",
+    Name = "🌀 Teleport by ID",
     Callback = function()
-        if tpUserID == "" then notify("✦ Error", "Type a User ID first!") return end
+        if tpUserID == "" then notify("✦ Error", "Type an ID!") return end
         local id = tonumber(tpUserID)
-        if not id then notify("✦ Error", "❌ Numbers only.") return end
+        if not id then notify("✦ Error", "Numbers only.") return end
         for _, p in pairs(Players:GetPlayers()) do
             if p.UserId == id then
                 local tRoot = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
@@ -947,7 +1349,7 @@ TpTab:CreateButton({
                 end
             end
         end
-        notify("✦ Not Found", "No player with ID " .. tpUserID .. " in server.")
+        notify("✦ Not Found", "No player with ID " .. tpUserID)
     end,
 })
 
@@ -955,7 +1357,7 @@ TpTab:CreateButton({
     Name = "🔍 Get My User ID",
     Callback = function()
         setclipboard(tostring(LocalPlayer.UserId))
-        notify("🆔 Your ID", "ID: " .. tostring(LocalPlayer.UserId) .. "\n✅ Copied!")
+        notify("🆔 My ID", "ID: " .. LocalPlayer.UserId .. " ✅ Copied!")
     end,
 })
 
@@ -994,8 +1396,117 @@ TpTab:CreateButton({
     end,
 })
 
+-- ===== EXTRAS TAB =====
+local ExtrasTab = Window:CreateTab("✦ Extras", 4483362458)
+
+ExtrasTab:CreateSection("🔦 Highlight")
+ExtrasTab:CreateToggle({
+    Name = "Highlight Players",
+    Info = "Red highlight on all players",
+    CurrentValue = false,
+    Flag = "HL",
+    Callback = function(v)
+        if v then
+            addHighlights()
+            if highlightConn then highlightConn:Disconnect() end
+            highlightConn = Players.PlayerAdded:Connect(function(p)
+                p.CharacterAdded:Connect(function()
+                    task.wait(0.5)
+                    addHighlights()
+                end)
+            end)
+            notify("🔦 Highlight ON", "Players highlighted.")
+        else
+            removeHighlights()
+            if highlightConn then highlightConn:Disconnect() highlightConn = nil end
+            notify("🔦 Highlight OFF", "Removed.")
+        end
+    end,
+})
+
+ExtrasTab:CreateSection("💬 Chat Logger")
+ExtrasTab:CreateToggle({
+    Name = "Chat Logger",
+    CurrentValue = false,
+    Flag = "ChatLogger",
+    Callback = function(v)
+        chatLogEnabled = v
+        if v then chatLog = {} notify("💬 Chat Logger ON", "Recording.")
+        else notify("💬 Chat Logger OFF", "Stopped.") end
+    end,
+})
+
+ExtrasTab:CreateButton({
+    Name = "📋 Show Chat Log",
+    Callback = function()
+        if #chatLog == 0 then notify("💬 Chat Log", "No messages yet.") return end
+        local lines = {}
+        for i = 1, math.min(10, #chatLog) do lines[i] = chatLog[i] end
+        notify("💬 Chat Log", table.concat(lines, "\n"), 10)
+    end,
+})
+
+ExtrasTab:CreateButton({
+    Name = "🗑️ Clear Chat Log",
+    Callback = function() chatLog = {} notify("✦ Cleared", "Log cleared.") end,
+})
+
+ExtrasTab:CreateSection("⏰ Anti AFK")
+ExtrasTab:CreateToggle({
+    Name = "Anti AFK",
+    CurrentValue = false,
+    Flag = "AntiAFK",
+    Callback = function(v)
+        antiAfkEnabled = v
+        if v then
+            if antiAfkThread then task.cancel(antiAfkThread) end
+            antiAfkThread = task.spawn(function()
+                while antiAfkEnabled do
+                    task.wait(240)
+                    if not antiAfkEnabled then break end
+                    pcall(function()
+                        if Humanoid then Humanoid.Jump = true task.wait(0.1) Humanoid.Jump = false end
+                    end)
+                end
+            end)
+            notify("⏰ Anti AFK ON", "Won't be kicked.")
+        else
+            if antiAfkThread then task.cancel(antiAfkThread) antiAfkThread = nil end
+            notify("⏰ Anti AFK OFF", "Disabled.")
+        end
+    end,
+})
+
+ExtrasTab:CreateSection("🌐 Server")
+ExtrasTab:CreateButton({
+    Name = "🌐 Server Info",
+    Callback = function()
+        local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
+        local gameName = "Unknown"
+        pcall(function()
+            gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+        end)
+        notify("🌐 Server Info", string.format(
+            "🎮 %s\n👥 Players: %s/%s\n📶 Ping: %sms\n🆔 Place: %s",
+            gameName, #Players:GetPlayers(), Players.MaxPlayers,
+            ping, tostring(game.PlaceId)
+        ), 8)
+    end,
+})
+
+ExtrasTab:CreateButton({
+    Name = "🔄 Rejoin",
+    Callback = function()
+        notify("✦ Rejoining", "In 3 seconds...")
+        task.wait(3)
+        pcall(function()
+            game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+        end)
+    end,
+})
+
 -- ===== WORLD TAB =====
-local WorldTab = Window:CreateTab("✦ World", 4483362458)
+local WorldTab = Window:CreateTab("🌍 World", 4483362458)
 
 WorldTab:CreateSection("🌍 Environment")
 WorldTab:CreateSlider({
@@ -1040,7 +1551,7 @@ WorldTab:CreateButton({
         for _, v in pairs(Lighting:GetChildren()) do
             if v:IsA("Atmosphere") then pcall(function() v.Density = 0 end) end
         end
-        notify("✦ Clear", "Weather cleared.")
+        notify("☀️ Clear", "Weather cleared.")
     end,
 })
 
@@ -1050,7 +1561,7 @@ WorldTab:CreateButton({
         Lighting.FogEnd = 80
         Lighting.FogStart = 0
         Lighting.FogColor = Color3.fromRGB(180,180,180)
-        notify("✦ Fog", "Fog enabled.")
+        notify("🌫️ Fog", "Fog enabled.")
     end,
 })
 
@@ -1061,7 +1572,7 @@ WorldTab:CreateButton({
         Lighting.ClockTime = 0
         Lighting.Ambient = Color3.fromRGB(0,0,0)
         Lighting.OutdoorAmbient = Color3.fromRGB(0,0,0)
-        notify("✦ Dark", "World darkened.")
+        notify("🌑 Dark", "World darkened.")
     end,
 })
 
@@ -1073,12 +1584,12 @@ WorldTab:CreateButton({
         Lighting.Ambient = Color3.fromRGB(128,128,128)
         Lighting.OutdoorAmbient = Color3.fromRGB(128,128,128)
         Lighting.FogEnd = 100000
-        notify("✦ Reset", "World restored.")
+        notify("🌅 Reset", "World restored.")
     end,
 })
 
 -- ===== PERFORMANCE TAB =====
-local PerfTab = Window:CreateTab("✦ Performance", 4483362458)
+local PerfTab = Window:CreateTab("🚀 Performance", 4483362458)
 
 PerfTab:CreateSection("🚀 FPS")
 PerfTab:CreateToggle({
@@ -1103,8 +1614,8 @@ PerfTab:CreateToggle({
         pcall(function()
             settings().Rendering.QualityLevel = v and Enum.QualityLevel.Level01 or Enum.QualityLevel.Automatic
         end)
-        notify(v and "✦ FPS Boost ON" or "✦ FPS Boost OFF",
-            v and "All effects removed." or "Visuals restored.")
+        notify(v and "🚀 FPS Boost ON" or "🚀 FPS Boost OFF",
+            v and "Effects removed." or "Visuals restored.")
     end,
 })
 
@@ -1151,63 +1662,8 @@ PerfTab:CreateSlider({
     Flag = "RenderDist",
     Callback = function(v)
         pcall(function()
-            workspace.StreamingMinRadius = v / 4
+            workspace.StreamingMinRadius = v/4
             workspace.StreamingTargetRadius = v
-        end)
-    end,
-})
-
--- ===== EXTRAS TAB =====
-local ExtrasTab = Window:CreateTab("✦ Extras", 4483362458)
-
-ExtrasTab:CreateSection("⏰ Anti AFK")
-local afkThread = nil
-ExtrasTab:CreateToggle({
-    Name = "Anti AFK",
-    CurrentValue = false,
-    Flag = "AntiAFK",
-    Callback = function(v)
-        if v then
-            afkThread = task.spawn(function()
-                while v do
-                    task.wait(240)
-                    pcall(function()
-                        if Humanoid then Humanoid.Jump = true task.wait(0.1) Humanoid.Jump = false end
-                    end)
-                end
-            end)
-            notify("⏰ Anti AFK ON", "Won't be kicked.")
-        else
-            if afkThread then task.cancel(afkThread) afkThread = nil end
-            notify("⏰ Anti AFK OFF", "Disabled.")
-        end
-    end,
-})
-
-ExtrasTab:CreateSection("🌐 Server")
-ExtrasTab:CreateButton({
-    Name = "🌐 Server Info",
-    Callback = function()
-        local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
-        local gameName = "Unknown"
-        pcall(function()
-            gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
-        end)
-        notify("🌐 Server Info", string.format(
-            "🎮 %s\n👥 Players: %s/%s\n📶 Ping: %sms\n🆔 Place: %s",
-            gameName, #Players:GetPlayers(), Players.MaxPlayers,
-            ping, tostring(game.PlaceId)
-        ), 8)
-    end,
-})
-
-ExtrasTab:CreateButton({
-    Name = "🔄 Rejoin",
-    Callback = function()
-        notify("✦ Rejoining", "In 3 seconds...")
-        task.wait(3)
-        pcall(function()
-            game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
         end)
     end,
 })
@@ -1215,35 +1671,59 @@ ExtrasTab:CreateButton({
 -- ===== CREDITS TAB =====
 local CreditsTab = Window:CreateTab("✦ Credits", 4483362458)
 
-CreditsTab:CreateSection("👑 Team")
+CreditsTab:CreateSection("👑 The Team")
+
 CreditsTab:CreateButton({
-    Name = "✦ Creator — Nexo",
-    Info = "Script developer and founder",
+    Name = "👑 Creator — Nexo",
+    Info = "Script developer, builder and founder of Nexo Hub",
     Callback = function()
-        notify("✦ Nexo", "Creator of Nexo Hub.", 5)
+        notify("👑 Nexo", "Creator of Nexo Hub.\nBuilt every single feature from scratch.\nv6.0 Rework Edition.", 7)
     end,
 })
 
 CreditsTab:CreateButton({
     Name = "💡 Ideas — Henry",
-    Info = "Feature ideas and suggestions",
+    Info = "Feature ideas and suggestions that shaped Nexo Hub",
     Callback = function()
-        notify("✦ Henry", "Ideas behind Nexo Hub.", 5)
+        notify("💡 Henry", "The ideas man behind Nexo Hub.\nEvery cool feature idea came from Henry.", 7)
+    end,
+})
+
+CreditsTab:CreateSection("📋 Script Info")
+
+CreditsTab:CreateButton({
+    Name = "📋 Version Info",
+    Info = "Shows current version details",
+    Callback = function()
+        notify("✦ Nexo Hub v6.0", string.format(
+            "🔖 Version: v6.0 Rework\n👑 Creator: Nexo\n💡 Ideas: Henry\n🔑 Key: Nexo100\n🌐 Discord: discord.gg/B24pmFzbFv\n📦 Features: 40+"
+        ), 10)
     end,
 })
 
 CreditsTab:CreateButton({
-    Name = "🔗 Discord",
+    Name = "🔗 Join Discord",
+    Info = "Copies the Discord invite link to clipboard",
     Callback = function()
         setclipboard("https://discord.gg/B24pmFzbFv")
-        notify("✦ Discord", "✅ Link copied!", 4)
+        notify("🔗 Discord", "✅ discord.gg/B24pmFzbFv copied!\nPaste in browser to join.", 5)
+    end,
+})
+
+CreditsTab:CreateSection("📜 Features List")
+
+CreditsTab:CreateButton({
+    Name = "📜 All Features",
+    Info = "Shows everything Nexo Hub can do",
+    Callback = function()
+        notify("✦ Features", "✈️ Fly + Accel  •  🚫 Noclip  •  👻 Invisible\n🦘 Inf Jump  •  🛡️ God Mode  •  💊 Heal\n😈 Fling  •  🌀 Spin  •  📍 Follow  •  🏃 Swap\n🪞 Clone  •  🌀 Teleport  •  🆔 By ID\n💬 Chat Log  •  🔦 Highlight  •  🚀 FPS\n⏰ Anti AFK  •  🌍 World  •  🔄 Rejoin", 12)
     end,
 })
 
 -- ===== LOADED =====
 notify(
-    "✦ Nexo Hub v5.0",
+    "✦ Nexo Hub v6.0",
     isEarlyAccess and "Early Access! Welcome, " .. LocalPlayer.Name .. " 👻"
-        or "Ready! Welcome, " .. LocalPlayer.Name .. ".",
+        or "Ready! Welcome, " .. LocalPlayer.Name .. " 🚀",
     6
 )
