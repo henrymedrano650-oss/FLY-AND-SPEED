@@ -1,4 +1,4 @@
--- Nexo Hub v6.0 Rework
+-- Nexo Hub v6.0 Ultimate
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -224,7 +224,7 @@ local loadSub = Instance.new("TextLabel", loadGui)
 loadSub.Size = UDim2.new(0,400,0,28)
 loadSub.Position = UDim2.new(0.5,-200,0.5,-68)
 loadSub.BackgroundTransparency = 1
-loadSub.Text = enteredKey == "TestEarly" and "✦ Early Access  •  v6.0" or "Premium Script Hub  •  v6.0"
+loadSub.Text = enteredKey == "TestEarly" and "✦ Early Access  •  v6.0 Ultimate" or "Premium Script Hub  •  v6.0 Ultimate"
 loadSub.TextScaled = true
 loadSub.Font = Enum.Font.Gotham
 loadSub.TextColor3 = Color3.fromRGB(150,120,200)
@@ -263,7 +263,7 @@ local verTxt = Instance.new("TextLabel", loadGui)
 verTxt.Size = UDim2.new(0,300,0,20)
 verTxt.Position = UDim2.new(0.5,-150,0.5,78)
 verTxt.BackgroundTransparency = 1
-verTxt.Text = "v6.0  •  Nexo Hub  •  by Nexo"
+verTxt.Text = "v6.0 Ultimate  •  Nexo Hub  •  by Nexo"
 verTxt.TextScaled = true
 verTxt.Font = Enum.Font.Gotham
 verTxt.TextColor3 = Color3.fromRGB(90,70,130)
@@ -274,19 +274,20 @@ TweenService:Create(loadSub, TweenInfo.new(0.8,Enum.EasingStyle.Quad), {TextTran
 task.wait(0.8)
 
 local steps = {
-    {"⚙️  Loading core modules...",   0.14, 0.6},
-    {"🔗  Connecting services...",     0.28, 0.6},
-    {"🔑  Verifying key...",            0.40, 0.5},
-    {"✈️  Loading fly system...",       0.52, 0.5},
-    {"😈  Loading troll features...",   0.64, 0.5},
-    {"🛠️  Building interface...",       0.76, 0.5},
-    {"⚡  Applying features...",        0.88, 0.4},
-    {"✦  Welcome to Nexo Hub v6.0!",  1.00, 0.4},
+    {"⚙️  Loading core modules...",       0.12, 0.5},
+    {"🔗  Connecting services...",         0.24, 0.5},
+    {"🔑  Verifying key...",               0.35, 0.4},
+    {"✈️  Loading fly system...",          0.46, 0.4},
+    {"😈  Loading troll features...",      0.57, 0.4},
+    {"🤖  Initializing AI assistant...",   0.68, 0.4},
+    {"🛠️  Building interface...",          0.79, 0.4},
+    {"⚡  Applying all features...",       0.90, 0.3},
+    {"✦  Welcome to Nexo Hub v6.0!",     1.00, 0.3},
 }
 
 for _, s in ipairs(steps) do
     statusTxt.Text = s[1]
-    TweenService:Create(barFill, TweenInfo.new(0.35,Enum.EasingStyle.Quad), {
+    TweenService:Create(barFill, TweenInfo.new(0.3,Enum.EasingStyle.Quad), {
         Size=UDim2.new(s[2],0,1,0)
     }):Play()
     task.wait(s[3])
@@ -343,6 +344,10 @@ local chatLogEnabled = false
 local antiAfkThread = nil
 local antiAfkEnabled = false
 local currentFlyVel = Vector3.zero
+local trollTarget = ""
+local followEnabled = false
+local followConn = nil
+local spinConn = nil
 
 -- ========== STAT LOOP ==========
 local function startStatLoop()
@@ -696,49 +701,41 @@ local function removeHighlights()
     highlights = {}
 end
 
--- ========== TROLL - FLING ==========
-local function flingPlayer(targetName)
-    local target = nil
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Name:lower():find(targetName:lower(), 1, true) then
-            target = p
-            break
-        end
-    end
+-- ========== FLING ==========
+local function flingPlayer(target)
     if not target or not target.Character then return false end
     local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
     if not tRoot or not RootPart then return false end
-
-    -- Teleport on top of target
     RootPart.CFrame = tRoot.CFrame * CFrame.new(0,3,0)
     task.wait(0.05)
-
-    -- Apply massive velocity using BodyVelocity on their root
     local fv = Instance.new("BodyVelocity")
     fv.MaxForce = Vector3.new(1e9,1e9,1e9)
-    fv.Velocity = Vector3.new(
-        math.random(-200,200),
-        math.random(300,600),
-        math.random(-200,200)
-    )
+    fv.Velocity = Vector3.new(math.random(-300,300), math.random(400,700), math.random(-300,300))
     fv.Parent = tRoot
-
-    -- Also apply to local player for extra force
-    local myFV = Instance.new("BodyVelocity")
-    myFV.MaxForce = Vector3.new(1e9,1e9,1e9)
-    myFV.Velocity = Vector3.new(
-        math.random(-100,100),
-        math.random(200,400),
-        math.random(-100,100)
-    )
-    myFV.Parent = RootPart
-
-    task.delay(0.2, function()
-        pcall(function() if fv.Parent then fv:Destroy() end end)
-        pcall(function() if myFV.Parent then myFV:Destroy() end end)
-    end)
-
+    task.delay(0.2, function() pcall(function() fv:Destroy() end) end)
     return true
+end
+
+-- ========== TROLL TARGET HELPER ==========
+local function getTrollTarget()
+    if trollTarget ~= "" then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Name:lower():find(trollTarget:lower(), 1, true) then
+                return p
+            end
+        end
+    end
+    local closest, closestDist = nil, 999
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local root = p.Character:FindFirstChild("HumanoidRootPart")
+            if root and RootPart then
+                local dist = (root.Position - RootPart.Position).Magnitude
+                if dist < closestDist then closestDist = dist closest = p end
+            end
+        end
+    end
+    return closest
 end
 
 -- ========== CHAT LOG ==========
@@ -798,12 +795,152 @@ local function findPlayer(name)
     return nil
 end
 
+-- ========== AI ASSISTANT ==========
+local aiQuestion = ""
+
+-- Nexo AI knowledge base
+local aiKnowledge = {
+    -- Fly
+    ["how do i fly"] = "✈️ Go to the Movement tab and toggle Enable Fly! WASD to move, Space to go up, Shift to go down.",
+    ["fly not working"] = "✈️ Make sure Fly is enabled in the Movement tab. Try toggling it off and on again after respawning.",
+    ["fly speed"] = "✈️ You can change fly speed with the Fly Speed slider in the Movement tab. Max is 1000!",
+    ["fly acceleration"] = "✈️ Fly Acceleration controls how snappy fly feels. Higher = instant response. Lower = smoother.",
+
+    -- Noclip
+    ["how do i noclip"] = "🚫 Go to Movement tab and toggle Enable Noclip. You will walk through walls!",
+    ["noclip not working"] = "🚫 Try toggling noclip off and on. Some games detect noclip — try fly instead.",
+
+    -- Invisible
+    ["how do i go invisible"] = "👻 Go to Movement tab and toggle Enable Invisible. Every part is hidden every frame!",
+    ["invisible not working"] = "👻 Click Refresh Invisible in the Movement tab to re-hide any visible parts.",
+
+    -- God mode
+    ["god mode"] = "🛡️ God Mode is in the Player tab. It locks your health at max every Heartbeat frame so you basically cant die.",
+    ["how do i not die"] = "🛡️ Enable God Mode in the Player tab! It keeps your health at max every frame.",
+
+    -- Speed
+    ["how do i go fast"] = "⚡ Use the WalkSpeed slider in the Player tab, or enable Speed Boost and hold E to sprint at 2.5x!",
+    ["walkspeed"] = "⚡ WalkSpeed slider is in the Player tab. Default is 16, max is 800.",
+    ["jump higher"] = "⬆️ Use the JumpPower slider in the Player tab. Enable Infinite Jump in Movement for unlimited jumps!",
+
+    -- Troll
+    ["how do i fling"] = "😈 Go to the Troll tab, type a name or leave empty for nearest, then press Fling Player!",
+    ["how do i troll"] = "😈 Check out the Troll tab! Fling, Mega Fling, Spin, Follow, and Swap Position are all there.",
+    ["fling not working"] = "😈 Make sure you are close to the target. Try Mega Fling for a stronger effect!",
+
+    -- Teleport
+    ["how do i teleport"] = "🌀 Go to the Teleport tab. You can teleport by username or by User ID!",
+    ["teleport by id"] = "🌀 In the Teleport tab there is a User ID section. Type their Roblox ID and press Teleport by ID!",
+    ["save position"] = "📌 In the Teleport tab press Save Position, then Return to Position to go back!",
+
+    -- Clone
+    ["how do i clone"] = "🪞 Go to the Clone tab! Leave the input empty to clone yourself, or type a name to clone someone else.",
+    ["clone not working"] = "🪞 Some games prevent cloning. Try in a different game. Make sure the target has a character loaded.",
+
+    -- ESP / Highlight
+    ["highlight"] = "🔦 Player Highlight is in the Extras tab. It adds a red glow to all players so you can see them!",
+    ["how do i see players"] = "🔦 Enable Highlight in the Extras tab to see all players with a red outline!",
+
+    -- Key
+    ["what is the key"] = "🔑 The current key is Nexo100! Join the Discord for future key updates.",
+    ["key"] = "🔑 The current key is Nexo100. Join Discord at discord.gg/B24pmFzbFv for updates.",
+    ["wrong key"] = "🔑 The key is Nexo100. Make sure there are no spaces. Capital N!",
+
+    -- Discord
+    ["discord"] = "🔗 Join the Nexo Hub Discord at discord.gg/B24pmFzbFv for keys, updates and support!",
+    ["discord link"] = "🔗 discord.gg/B24pmFzbFv — join for keys and updates!",
+
+    -- Credits
+    ["who made this"] = "👑 Nexo Hub was created by Nexo. Feature ideas by Henry. Best Roblox script hub!",
+    ["who is nexo"] = "👑 Nexo is the creator and developer of Nexo Hub. Henry provides the feature ideas!",
+    ["who is henry"] = "💡 Henry is the ideas guy behind Nexo Hub. Every cool feature idea came from him!",
+
+    -- FPS
+    ["fps"] = "🚀 Go to the Performance tab and enable FPS Boost. It removes all effects for max FPS!",
+    ["lag"] = "🚀 Enable FPS Boost in Performance tab. Also try lowering the Render Distance slider!",
+    ["fps boost"] = "🚀 FPS Boost is in the Performance tab. It removes shadows, particles, atmosphere and post effects!",
+
+    -- AFK
+    ["afk"] = "⏰ Enable Anti AFK in the Extras tab to prevent getting kicked!",
+    ["getting kicked"] = "⏰ Enable Anti AFK in the Extras tab. It automatically jumps every 4 minutes!",
+
+    -- Chat
+    ["chat log"] = "💬 Enable Chat Logger in the Extras tab to record all server chat. Press Show Chat Log to view!",
+    ["how do i see chat"] = "💬 Enable Chat Logger in the Extras tab then press Show Chat Log to see messages!",
+
+    -- Version
+    ["version"] = "📋 You are running Nexo Hub v6.0 Ultimate Edition. The best version yet!",
+    ["what version"] = "📋 Nexo Hub v6.0 Ultimate — created by Nexo, ideas by Henry.",
+
+    -- Hello
+    ["hello"] = "👋 Hey! I'm Nexo AI, your in-game assistant. Ask me anything about Nexo Hub!",
+    ["hi"] = "👋 Hi there! I'm Nexo AI. Ask me how to use any feature!",
+    ["hey"] = "👋 Hey! What can I help you with today?",
+    ["help"] = "🤖 I can answer questions about any Nexo Hub feature! Try asking: 'how do i fly', 'what is the key', 'how do i troll', etc.",
+
+    -- Thanks
+    ["thanks"] = "😊 You're welcome! Ask me anything else about Nexo Hub!",
+    ["thank you"] = "😊 Happy to help! Enjoy Nexo Hub v6.0!",
+    ["cool"] = "😎 Thanks! Nexo Hub is always getting better. Stay tuned for more updates!",
+    ["nice"] = "😎 Thanks! Made with ❤️ by Nexo.",
+}
+
+-- Hard questions that trigger beta response
+local hardQuestions = {
+    "exploit", "inject", "bypass", "undetect", "anticheat",
+    "how does rayfield work", "how is the script made",
+    "source code", "decompile", "obfuscate", "encode",
+    "how do you make a script", "how to script",
+    "lua tutorial", "learn lua", "what is lua",
+    "roblox studio", "game dev", "create a game",
+    "hack roblox", "roblox exploit",
+}
+
+local function processAIQuestion(q)
+    q = q:lower():gsub("[%p]", "")
+
+    -- Check hard questions first
+    for _, hard in pairs(hardQuestions) do
+        if q:find(hard) then
+            return "🤖 Sorry, I'm in beta and can't answer that question yet. Try asking about Nexo Hub features instead!"
+        end
+    end
+
+    -- Check knowledge base
+    for keyword, answer in pairs(aiKnowledge) do
+        if q:find(keyword) then
+            return answer
+        end
+    end
+
+    -- Check for partial matches
+    local words = {}
+    for word in q:gmatch("%S+") do table.insert(words, word) end
+
+    for keyword, answer in pairs(aiKnowledge) do
+        for _, word in pairs(words) do
+            if keyword:find(word) and #word > 3 then
+                return answer
+            end
+        end
+    end
+
+    -- Unknown
+    local unknown = {
+        "🤖 Hmm I don't know that one yet. Try asking about fly, noclip, troll, key, teleport or other features!",
+        "🤖 I'm still learning! Ask me something like 'how do i fly' or 'what is the key'.",
+        "🤖 I'm in beta and that one is too hard for me right now! Try asking about Nexo Hub features.",
+        "🤖 Good question, but I can't answer that yet. Ask me about fly, troll, ESP or any hub feature!",
+    }
+    return unknown[math.random(1, #unknown)]
+end
+
 -- ========== MAIN UI ==========
 local Window = Rayfield:CreateWindow({
-    Name = "✦ Nexo Hub v6.0",
+    Name = "✦ Nexo Hub v6.0 Ultimate",
     Icon = 0,
     LoadingTitle = "✦ Nexo Hub v6.0",
-    LoadingSubtitle = "by Nexo  •  Rework Edition",
+    LoadingSubtitle = "by Nexo  •  Ultimate Edition",
     Theme = "Amethyst",
     DisableRayfieldPrompts = false,
     DisableBuildWarnings = false,
@@ -1069,74 +1206,40 @@ PlayerTab:CreateButton({
 local TrollTab = Window:CreateTab("😈 Troll", 4483362458)
 
 TrollTab:CreateSection("🎯 Target")
-local trollTarget = ""
 TrollTab:CreateInput({
     Name = "Target Player",
-    Info = "Type username to troll — leave empty for nearest",
-    Placeholder = "Username...",
+    Info = "Leave empty to auto-target nearest",
+    Placeholder = "Username or leave empty...",
     Text = "",
     Callback = function(t) trollTarget = t end,
 })
 
-local function getTrollTarget()
-    if trollTarget ~= "" then
-        return findPlayer(trollTarget)
-    end
-    -- Find nearest
-    local closest = nil
-    local closestDist = 999
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            local root = p.Character:FindFirstChild("HumanoidRootPart")
-            if root and RootPart then
-                local dist = (root.Position - RootPart.Position).Magnitude
-                if dist < closestDist then
-                    closestDist = dist
-                    closest = p
-                end
-            end
-        end
-    end
-    return closest
-end
-
 TrollTab:CreateSection("💥 Fling")
-
 TrollTab:CreateButton({
     Name = "💥 Fling Player",
-    Info = "Launches the target player into the air",
+    Info = "Launches target into the air",
     Callback = function()
         local target = getTrollTarget()
-        if not target then
-            notify("✦ No Target", "No player found!")
-            return
-        end
-        local ok = flingPlayer(target.Name)
+        if not target then notify("✦ No Target", "No player found!") return end
+        local ok = flingPlayer(target)
         notify(ok and "💥 Flung!" or "✦ Error",
-            ok and target.Name .. " has been flung! 😂" or "Could not fling.")
+            ok and target.Name .. " has been flung! 😂" or "Could not fling.", 4)
     end,
 })
 
 TrollTab:CreateButton({
-    Name = "💥 Mega Fling",
-    Info = "Extreme version — sends them flying much higher",
+    Name = "🚀 Mega Fling",
+    Info = "Sends them to the moon",
     Callback = function()
         local target = getTrollTarget()
-        if not target or not target.Character then
-            notify("✦ No Target", "No player found!")
-            return
-        end
+        if not target or not target.Character then notify("✦ No Target", "No player found!") return end
         local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
         if not tRoot or not RootPart then return end
         RootPart.CFrame = tRoot.CFrame * CFrame.new(0,2,0)
         task.wait(0.05)
         local fv = Instance.new("BodyVelocity")
         fv.MaxForce = Vector3.new(1e9,1e9,1e9)
-        fv.Velocity = Vector3.new(
-            math.random(-500,500),
-            math.random(800,1500),
-            math.random(-500,500)
-        )
+        fv.Velocity = Vector3.new(math.random(-600,600), math.random(1000,2000), math.random(-600,600))
         fv.Parent = tRoot
         task.delay(0.15, function() pcall(function() fv:Destroy() end) end)
         notify("🚀 MEGA FLUNG!", target.Name .. " sent to space! 🌙", 4)
@@ -1144,37 +1247,29 @@ TrollTab:CreateButton({
 })
 
 TrollTab:CreateSection("🌀 Spin")
-
-local spinConn = nil
-local spinTarget = nil
 TrollTab:CreateToggle({
     Name = "🌀 Spin Player",
-    Info = "Continuously spins the target player",
+    Info = "Spins the target continuously",
     CurrentValue = false,
     Flag = "SpinTroll",
     Callback = function(v)
         if v then
             local target = getTrollTarget()
             if not target or not target.Character then
-                notify("✦ No Target", "No player found!")
-                return
+                notify("✦ No Target", "No player found!") return
             end
-            spinTarget = target
             local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
             if not tRoot then return end
-            if spinConn then spinConn:Disconnect() end
             local bg = Instance.new("BodyAngularVelocity")
-            bg.AngularVelocity = Vector3.new(0, 50, 0)
+            bg.AngularVelocity = Vector3.new(0,50,0)
             bg.MaxTorque = Vector3.new(0,1e9,0)
             bg.Parent = tRoot
+            if spinConn then task.cancel(spinConn) end
             spinConn = task.spawn(function()
-                while v do
-                    task.wait(0.1)
-                    if not spinTarget or not spinTarget.Character then break end
-                end
+                while v do task.wait(0.5) end
                 pcall(function() bg:Destroy() end)
             end)
-            notify("🌀 Spinning", target.Name .. " is now spinning!")
+            notify("🌀 Spinning", target.Name .. " is spinning!")
         else
             if spinConn then task.cancel(spinConn) spinConn = nil end
             notify("🌀 Spin OFF", "Stopped.")
@@ -1183,22 +1278,16 @@ TrollTab:CreateToggle({
 })
 
 TrollTab:CreateSection("📍 Follow")
-
-local followConn = nil
-local followEnabled = false
 TrollTab:CreateToggle({
     Name = "📍 Follow Player",
-    Info = "Constantly teleports to follow the target",
+    Info = "Constantly teleports to follow target",
     CurrentValue = false,
     Flag = "FollowTroll",
     Callback = function(v)
         followEnabled = v
         if v then
             local target = getTrollTarget()
-            if not target then
-                notify("✦ No Target", "No player found!")
-                return
-            end
+            if not target then notify("✦ No Target", "No player found!") return end
             if followConn then task.cancel(followConn) end
             followConn = task.spawn(function()
                 while followEnabled do
@@ -1214,44 +1303,64 @@ TrollTab:CreateToggle({
             notify("📍 Following", "Following " .. target.Name .. "!")
         else
             if followConn then task.cancel(followConn) followConn = nil end
-            notify("📍 Follow OFF", "Stopped following.")
+            notify("📍 Follow OFF", "Stopped.")
         end
     end,
 })
 
-TrollTab:CreateSection("😵 Confuse")
-
-TrollTab:CreateButton({
-    Name = "😵 Confuse Camera (Self)",
-    Info = "Flips your own camera for a dizzy effect",
-    Callback = function()
-        local cam = workspace.CurrentCamera
-        for i = 1, 10 do
-            task.wait(0.1)
-            pcall(function()
-                cam.CFrame = cam.CFrame * CFrame.Angles(0, 0, math.pi)
-            end)
-        end
-        notify("😵 Dizzy!", "Camera confused for 1 second!")
-    end,
-})
-
+TrollTab:CreateSection("🏃 More Troll")
 TrollTab:CreateButton({
     Name = "🏃 Swap Position",
-    Info = "Swaps your position with the target player",
+    Info = "Swaps your position with target",
     Callback = function()
         local target = getTrollTarget()
-        if not target or not target.Character then
-            notify("✦ No Target", "No player found!")
-            return
-        end
+        if not target or not target.Character then notify("✦ No Target", "No player found!") return end
         local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
         if not tRoot or not RootPart then return end
-        local myCFrame = RootPart.CFrame
-        local theirCFrame = tRoot.CFrame
-        RootPart.CFrame = theirCFrame
-        tRoot.CFrame = myCFrame
-        notify("🏃 Swapped!", "Position swapped with " .. target.Name .. "!")
+        local myCF = RootPart.CFrame
+        local theirCF = tRoot.CFrame
+        RootPart.CFrame = theirCF
+        tRoot.CFrame = myCF
+        notify("🏃 Swapped!", "Positions swapped with " .. target.Name .. "!")
+    end,
+})
+
+TrollTab:CreateButton({
+    Name = "🎪 Fling Everyone",
+    Info = "Flings every player in the server",
+    Callback = function()
+        local count = 0
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                if flingPlayer(p) then count = count + 1 end
+                task.wait(0.05)
+            end
+        end
+        notify("🎪 Server Flung!", "Flung " .. count .. " players! 😂", 5)
+    end,
+})
+
+TrollTab:CreateButton({
+    Name = "🔁 Teleport Loop Target",
+    Info = "Rapidly teleports target around",
+    Callback = function()
+        local target = getTrollTarget()
+        if not target or not target.Character then notify("✦ No Target", "No player found!") return end
+        local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+        if not tRoot then return end
+        task.spawn(function()
+            for i = 1, 20 do
+                pcall(function()
+                    tRoot.CFrame = CFrame.new(
+                        math.random(-100,100),
+                        math.random(10,50),
+                        math.random(-100,100)
+                    )
+                end)
+                task.wait(0.1)
+            end
+        end)
+        notify("🔁 Chaos!", target.Name .. " is being teleported everywhere! 😂", 4)
     end,
 })
 
@@ -1668,24 +1777,97 @@ PerfTab:CreateSlider({
     end,
 })
 
+-- ===== AI ASSISTANT TAB =====
+local AITab = Window:CreateTab("🤖 Nexo AI", 4483362458)
+
+AITab:CreateSection("🤖 Nexo AI Assistant — Beta")
+
+AITab:CreateButton({
+    Name = "🤖 What is Nexo AI?",
+    Info = "Learn about the AI assistant",
+    Callback = function()
+        notify("🤖 Nexo AI", "I'm Nexo AI, your in-game assistant!\nI can answer questions about any Nexo Hub feature.\nJust type your question below and press Ask!\n\n⚠️ Currently in Beta — complex questions may not be answered.", 10)
+    end,
+})
+
+AITab:CreateSection("💬 Ask a Question")
+
+AITab:CreateInput({
+    Name = "Your Question",
+    Info = "Type your question here about Nexo Hub",
+    Placeholder = "e.g. how do i fly, what is the key, how do i troll...",
+    Text = "",
+    Callback = function(t) aiQuestion = t end,
+})
+
+AITab:CreateButton({
+    Name = "🤖 Ask Nexo AI",
+    Info = "Press to get an answer from Nexo AI",
+    Callback = function()
+        if aiQuestion == "" then
+            notify("🤖 Nexo AI", "Please type a question first!")
+            return
+        end
+        notify("🤖 Nexo AI", "Thinking... 💭", 1)
+        task.wait(0.8)
+        local answer = processAIQuestion(aiQuestion)
+        notify("🤖 Nexo AI", answer, 10)
+    end,
+})
+
+AITab:CreateSection("💡 Example Questions")
+
+local exampleQs = {
+    "How do I fly?",
+    "What is the key?",
+    "How do I go invisible?",
+    "How do I fling?",
+    "How do I teleport?",
+    "How do I get FPS boost?",
+    "Who made this?",
+    "How do I clone?",
+}
+
+for _, q in pairs(exampleQs) do
+    local question = q
+    AITab:CreateButton({
+        Name = "💬 " .. question,
+        Callback = function()
+            notify("🤖 Nexo AI", "Thinking... 💭", 1)
+            task.wait(0.8)
+            local answer = processAIQuestion(question:lower())
+            notify("🤖 Nexo AI", answer, 10)
+        end,
+    })
+end
+
+AITab:CreateSection("⚠️ Beta Info")
+AITab:CreateButton({
+    Name = "⚠️ Beta Limitations",
+    Info = "What Nexo AI can and cannot do",
+    Callback = function()
+        notify("🤖 Beta Info", "✅ Can answer: Feature questions, how-to guides, key info, Discord, credits\n\n❌ Cannot answer: Complex scripting, Roblox internals, exploit questions\n\n🔄 More knowledge coming in future updates!", 12)
+    end,
+})
+
 -- ===== CREDITS TAB =====
 local CreditsTab = Window:CreateTab("✦ Credits", 4483362458)
 
-CreditsTab:CreateSection("👑 The Team")
+CreditsTab:CreateSection("👑 The Dream Team")
 
 CreditsTab:CreateButton({
     Name = "👑 Creator — Nexo",
-    Info = "Script developer, builder and founder of Nexo Hub",
+    Info = "Script developer, builder and founder",
     Callback = function()
-        notify("👑 Nexo", "Creator of Nexo Hub.\nBuilt every single feature from scratch.\nv6.0 Rework Edition.", 7)
+        notify("👑 Nexo", "Creator of Nexo Hub.\nBuilt every feature from scratch.\nv6.0 Ultimate Edition — the best yet.", 7)
     end,
 })
 
 CreditsTab:CreateButton({
     Name = "💡 Ideas — Henry",
-    Info = "Feature ideas and suggestions that shaped Nexo Hub",
+    Info = "The ideas man behind Nexo Hub",
     Callback = function()
-        notify("💡 Henry", "The ideas man behind Nexo Hub.\nEvery cool feature idea came from Henry.", 7)
+        notify("💡 Henry", "The ideas man behind Nexo Hub.\nEvery single cool feature idea came from Henry.", 7)
     end,
 })
 
@@ -1693,17 +1875,14 @@ CreditsTab:CreateSection("📋 Script Info")
 
 CreditsTab:CreateButton({
     Name = "📋 Version Info",
-    Info = "Shows current version details",
     Callback = function()
-        notify("✦ Nexo Hub v6.0", string.format(
-            "🔖 Version: v6.0 Rework\n👑 Creator: Nexo\n💡 Ideas: Henry\n🔑 Key: Nexo100\n🌐 Discord: discord.gg/B24pmFzbFv\n📦 Features: 40+"
-        ), 10)
+        notify("✦ Nexo Hub v6.0 Ultimate",
+            "🔖 Version: v6.0 Ultimate\n👑 Creator: Nexo\n💡 Ideas: Henry\n🔑 Key: Nexo100\n🤖 AI: Nexo AI Beta\n🌐 discord.gg/B24pmFzbFv\n📦 Features: 50+", 10)
     end,
 })
 
 CreditsTab:CreateButton({
     Name = "🔗 Join Discord",
-    Info = "Copies the Discord invite link to clipboard",
     Callback = function()
         setclipboard("https://discord.gg/B24pmFzbFv")
         notify("🔗 Discord", "✅ discord.gg/B24pmFzbFv copied!\nPaste in browser to join.", 5)
@@ -1714,16 +1893,25 @@ CreditsTab:CreateSection("📜 Features List")
 
 CreditsTab:CreateButton({
     Name = "📜 All Features",
-    Info = "Shows everything Nexo Hub can do",
     Callback = function()
-        notify("✦ Features", "✈️ Fly + Accel  •  🚫 Noclip  •  👻 Invisible\n🦘 Inf Jump  •  🛡️ God Mode  •  💊 Heal\n😈 Fling  •  🌀 Spin  •  📍 Follow  •  🏃 Swap\n🪞 Clone  •  🌀 Teleport  •  🆔 By ID\n💬 Chat Log  •  🔦 Highlight  •  🚀 FPS\n⏰ Anti AFK  •  🌍 World  •  🔄 Rejoin", 12)
+        notify("✦ 50+ Features", "✈️ Fly+Accel  🚫 Noclip  👻 Invisible\n🦘 Inf Jump  🛡️ God Mode  💊 Heal\n😈 Fling  🚀 Mega Fling  🌀 Spin\n📍 Follow  🏃 Swap  🎪 Fling All\n🪞 Clone  🌀 Teleport  🆔 By ID\n💬 Chat Log  🔦 Highlight  🚀 FPS\n⏰ Anti AFK  🌍 World  🤖 Nexo AI", 12)
+    end,
+})
+
+CreditsTab:CreateSection("❤️ Thank You")
+
+CreditsTab:CreateButton({
+    Name = "❤️ Thank You for Using Nexo Hub!",
+    Info = "We appreciate every user",
+    Callback = function()
+        notify("❤️ Thank You!", "Thanks for using Nexo Hub v6.0!\nMade with ❤️ by Nexo\nIdeas by Henry\nJoin Discord: discord.gg/B24pmFzbFv", 8)
     end,
 })
 
 -- ===== LOADED =====
 notify(
-    "✦ Nexo Hub v6.0",
+    "✦ Nexo Hub v6.0 Ultimate",
     isEarlyAccess and "Early Access! Welcome, " .. LocalPlayer.Name .. " 👻"
-        or "Ready! Welcome, " .. LocalPlayer.Name .. " 🚀",
-    6
+        or "Ready! Welcome, " .. LocalPlayer.Name .. " 🚀\nType /nexoai in chat for quick help!",
+    7
 )
